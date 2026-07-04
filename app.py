@@ -8,7 +8,7 @@ from modules.ui_components import format_krw_bn, hero, setup_page, signal_card
 
 setup_page(
     "K-REIT CFO Copilot",
-    "AI-powered decision intelligence for listed REIT CFOs, AMCs, and IR teams",
+    "AI-powered decision intelligence for listed REIT CFOs, AMCs, IR teams, and risk management teams",
 )
 
 data = load_all_data()
@@ -24,7 +24,7 @@ hero(
     "AX consulting prototype",
     "Decision intelligence for listed REIT leadership teams",
     "K-REIT CFO Copilot converts fragmented portfolio, debt, tax, disclosure, and IR signals into "
-    "scenario-based decisions, management narrative, and AI readiness diagnostics.",
+    "scenario-based decisions, risk oversight, management narrative, and AI readiness diagnostics.",
 )
 
 col1, col2, col3 = st.columns(3)
@@ -38,7 +38,7 @@ with col2:
     signal_card(
         "Copilot lens",
         "CFO action cockpit",
-        "The prototype brings risk signals into one decision model for CFOs, AMCs, and IR teams.",
+        "The prototype brings risk signals into one decision model for CFOs, AMCs, IR, and risk teams.",
     )
 with col3:
     signal_card(

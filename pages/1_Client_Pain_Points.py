@@ -14,7 +14,7 @@ hero(
     "Customer problem first",
     "Listed REIT finance teams need a decision platform, not another accounting automation screen",
     "The prototype is framed around CFO, AMC, and IR pain points: capital-market pressure, dividend "
-    "credibility, asset-level evidence, tax leakage, disclosure consistency, and AX readiness.",
+    "credibility, asset-level evidence, risk oversight, tax leakage, disclosure consistency, and AX readiness.",
 )
 
 pain_points = pd.DataFrame(
@@ -55,6 +55,12 @@ pain_points = pd.DataFrame(
             "Copilot response": "Disclosure flags and AI readiness diagnostics",
             "Business impact": "Practical roadmap for AX transformation",
         },
+        {
+            "Client pain point": "Risk indicators are monitored after issues are already visible to the market",
+            "CFO decision cost": "Late escalation of maturity, valuation, and disclosure risks",
+            "Copilot response": "Risk management early-warning cockpit",
+            "Business impact": "Earlier cross-functional response planning",
+        },
     ]
 )
 
@@ -69,6 +75,8 @@ stakeholder_view = pd.DataFrame(
         {"Stakeholder": "AMC", "Pain area": "Tax-aware hold/sell view", "Urgency": 78, "Current friction": 72},
         {"Stakeholder": "IR", "Pain area": "Investor Q&A consistency", "Urgency": 86, "Current friction": 80},
         {"Stakeholder": "IR", "Pain area": "Disclosure quality", "Urgency": 81, "Current friction": 74},
+        {"Stakeholder": "Risk", "Pain area": "Early warning indicators", "Urgency": 88, "Current friction": 79},
+        {"Stakeholder": "Risk", "Pain area": "Control-ready AI adoption", "Urgency": 80, "Current friction": 75},
     ]
 )
 
@@ -81,7 +89,7 @@ with left:
         y="Pain area",
         color="Stakeholder",
         orientation="h",
-        color_discrete_map={"CFO": "#263b5e", "AMC": "#007c89", "IR": "#b76e00"},
+        color_discrete_map={"CFO": "#263b5e", "AMC": "#007c89", "IR": "#b76e00", "Risk": "#c94f4f"},
         labels={"Pain area": "", "Urgency": "Decision urgency"},
     )
     fig.update_layout(height=390, margin=dict(l=10, r=10, t=20, b=10))
@@ -103,5 +111,10 @@ with right:
         "IR",
         "Narrative consistency",
         "Needs repeatable investor answers grounded in approved metrics and disclosure flags.",
+    )
+    signal_card(
+        "Risk",
+        "Early warning control",
+        "Needs structured indicators for refinancing, asset, valuation, disclosure, and AI readiness risks.",
     )
 
