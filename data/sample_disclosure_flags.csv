@@ -1,0 +1,10 @@
+flag_id,reit_id,area,flag,severity,status,decision_risk,recommended_action
+F-001,sk_reit,Debt maturity,2026 secured facility lacks fully documented refinancing terms,High,Open,Refinancing guidance may be challenged by investors,Prepare term-sheet status bridge and lender timetable
+F-002,sk_reit,Tenant concentration,Top tenant exposure exceeds internal narrative threshold,Medium,Open,Dividend resilience could be perceived as sponsor-dependent,Add concentration sensitivity and renewal probability disclosure
+F-003,sk_reit,Asset capex,Distributed infrastructure maintenance budget is not linked to FFO guidance,Medium,In review,Capex leakage may be missed in dividend planning,Connect capex plan to tax-adjusted cash-flow bridge
+F-004,lotte_reit,Retail traffic,Same-store retail traffic KPI is not consistently mapped to rent outlook,High,Open,Rent-change scenarios may lack operational evidence,Standardize asset-level traffic and rent sensitivity dataset
+F-005,lotte_reit,Debt maturity,2027 bond refinancing assumptions use manual spreadsheet estimates,Medium,Open,Investor Q&A may rely on inconsistent cost-of-debt figures,Centralize maturity wall and market-rate assumptions
+F-006,lotte_reit,Tax,Property tax and taxable income adjustments are reviewed outside scenario model,Medium,Open,Hold/sell decisions may miss tax leakage,Integrate tax adjustment line into scenario engine
+F-007,esr_ks_reit,Lease rollover,Urban logistics top tenant renewal status is not machine-readable,Medium,Open,WALE confidence may be overstated,Create lease event register with renewal probability
+F-008,esr_ks_reit,Green bond reporting,Use-of-proceeds metrics are stored separately from investor reporting pack,Low,In review,Disclosure production takes longer than needed,Link sustainability data to IR reporting model
+F-009,esr_ks_reit,Asset valuation,Cold-chain capex assumptions are not reconciled with valuation sensitivities,Medium,Open,Asset value shock may understate capex and yield movement,Add valuation and capex reconciliation check

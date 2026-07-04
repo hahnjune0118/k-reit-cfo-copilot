@@ -1,0 +1,13 @@
+asset_id,reit_id,asset_name,sector,location,asset_value_krw_bn,noi_krw_bn,occupancy_pct,wale_years,top_tenant_share_pct,lease_indexation_pct,capex_need_pct,strategic_importance
+SK-A01,sk_reit,SK Seorin Office Tower,Office,Seoul Jongno,1200,58,99.2,5.3,72,2.4,5,Anchor asset for sponsor-linked income stability
+SK-A02,sk_reit,SK Telecom T Tower,Office,Seoul Jung,870,41,98.7,4.7,65,2.1,6,Core income asset with tenant concentration exposure
+SK-A03,sk_reit,SK Energy Service Portfolio,Infrastructure,National,760,32,96.9,3.8,44,1.8,9,Distributed assets sensitive to refinancing and maintenance spend
+SK-A04,sk_reit,Pangyo Tech Campus Interest,Office,Gyeonggi Seongnam,670,25,97.4,4.4,38,2.0,7,Growth-facing office asset with lease rollover watch
+LOT-A01,lotte_reit,Lotte Department Store Gangnam,Retail,Seoul Gangnam,780,38,98.1,6.8,70,1.5,8,Flagship retail asset supporting dividend narrative
+LOT-A02,lotte_reit,Lotte Mart Portfolio,Retail,National,620,29,96.8,5.9,62,1.3,11,Stable rent base but exposed to retail format changes
+LOT-A03,lotte_reit,Lotte Premium Outlet Interest,Retail,Gyeonggi Icheon,540,25,97.6,6.4,58,1.4,9,Traffic-dependent asset with resilient long leases
+LOT-A04,lotte_reit,Lotte Logistics Hub,Logistics,Gyeonggi Osan,560,27,97.2,5.2,36,2.2,6,Diversification asset connecting retail and logistics story
+ESR-A01,esr_ks_reit,Goyang Logistics Center,Logistics,Gyeonggi Goyang,820,39,99.3,5.8,42,2.7,5,Core logistics income asset with strong occupancy
+ESR-A02,esr_ks_reit,Yongin Fulfillment Center,Logistics,Gyeonggi Yongin,760,34,99.0,5.1,48,2.5,6,E-commerce linked growth asset with tenant renewal watch
+ESR-A03,esr_ks_reit,Bucheon Urban Logistics Hub,Logistics,Gyeonggi Bucheon,690,31,98.5,4.7,55,2.6,7,Urban last-mile asset with concentration risk
+ESR-A04,esr_ks_reit,Anseong Cold Chain Center,Logistics,Gyeonggi Anseong,830,37,99.2,6.0,39,2.8,8,Specialized logistics asset with capex monitoring need

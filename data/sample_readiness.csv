@@ -1,0 +1,19 @@
+reit_id,dimension,score,interpretation,next_step
+sk_reit,Data Availability,4.2,Core asset debt and cash-flow data exists across reporting packs,Create a single CFO data mart for portfolio and debt facts
+sk_reit,Data Consistency,3.4,Metric definitions are mostly aligned but refinancing assumptions vary by file,Define source-of-truth fields for debt cost maturity and rate type
+sk_reit,KPI Standardization,3.6,Board KPIs exist but scenario and investor KPIs are not fully linked,Map board KPIs to IR and lender communication metrics
+sk_reit,Scenario Capability,3.1,Interest-rate and asset-value sensitivities are available but semi-manual,Automate downside scenarios and executive alerts
+sk_reit,Tax-Finance Integration,2.8,Tax leakage is reviewed after finance scenarios,Embed tax adjustment into cash-flow and dividend coverage model
+sk_reit,AI Use Case Readiness,3.5,Briefing memo and Q&A generation can start with controlled templates,Build approved narrative library for recurring investor topics
+lotte_reit,Data Availability,4.0,Core retail portfolio data exists but operating KPIs are fragmented,Connect traffic rent and tenant KPIs at asset level
+lotte_reit,Data Consistency,3.0,Retail cash-flow assumptions differ between IR and finance workbooks,Standardize rent sensitivity and cost pass-through definitions
+lotte_reit,KPI Standardization,3.2,Dividend and occupancy KPIs are stable but retail risk metrics need definition,Define store traffic renewal and lease spread KPIs
+lotte_reit,Scenario Capability,2.7,Retail downside scenarios are still workbook-led,Operationalize rent and valuation shock playbooks
+lotte_reit,Tax-Finance Integration,2.6,Tax adjustments are visible but not integrated into scenario outputs,Add tax-adjusted cash-flow reporting to dashboard
+lotte_reit,AI Use Case Readiness,3.3,Investor Q&A topics are repetitive enough for rule-based drafting,Create reviewed answer bank for recurring retail resilience questions
+esr_ks_reit,Data Availability,4.3,Asset debt and leasing datasets are comparatively complete,Unify leasing and valuation data into scenario-ready format
+esr_ks_reit,Data Consistency,3.7,Most definitions are consistent but tenant renewal status needs structure,Create standardized lease event register
+esr_ks_reit,KPI Standardization,3.8,Logistics KPIs are investor-friendly but valuation sensitivities need tighter linkage,Add NOI yield and capex sensitivity fields
+esr_ks_reit,Scenario Capability,3.4,Scenario work is mature for rates and rents but less complete for capex,Automate multi-factor downside cases
+esr_ks_reit,Tax-Finance Integration,3.0,Tax treatment is understood but not embedded in narrative generation,Push tax-adjusted cash flow into briefing memo logic
+esr_ks_reit,AI Use Case Readiness,3.8,Disclosure and Q&A drafts can be generated from structured data,Create governance workflow for AI-generated management narrative
