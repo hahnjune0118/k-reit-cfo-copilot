@@ -1,8 +1,8 @@
 # VERSION
 
-Current version: v02
+Current version: v04
 
-Previous version: v01
+Previous version: v03
 
 Versioning rule:
 - Every feature release should increment sequentially: v03, v04, v05, etc.

@@ -7,6 +7,13 @@ from modules.scenario_engine import CURRENT_YEAR, classify_risk, debt_profile, r
 
 
 SEVERITY_SCORE = {"Low": 1, "Medium": 2, "High": 3}
+RISK_WEIGHTS = {
+    "Refinancing Risk": 0.30,
+    "Dividend Sustainability": 0.25,
+    "Asset Risk": 0.20,
+    "Disclosure Quality": 0.15,
+    "AI Readiness": 0.10,
+}
 
 
 def score_assets(assets: pd.DataFrame) -> pd.DataFrame:
@@ -98,6 +105,96 @@ def readiness_score(readiness: pd.DataFrame, flags: pd.DataFrame | None = None) 
             5,
         )
     return scores.sort_values("ai_readiness_score", ascending=False)
+
+
+def attention_label(score: float) -> str:
+    if score >= 65:
+        return "High"
+    if score >= 35:
+        return "Watch"
+    return "Low"
+
+
+def attention_scores(
+    reit: pd.Series,
+    assets: pd.DataFrame,
+    debt: pd.DataFrame,
+    flags: pd.DataFrame,
+    readiness: pd.DataFrame,
+) -> tuple[pd.DataFrame, dict[str, float | str]]:
+    scenario = run_scenario(reit, assets, debt)
+    asset_scores = score_assets(assets)
+    ready = readiness_score(readiness, flags)
+    ai_ready_score = float(ready["ai_readiness_score"].iloc[0]) if not ready.empty else 0.0
+
+    high_flags = int((flags["severity"] == "High").sum()) if not flags.empty else 0
+    open_flags = int(len(flags))
+    avg_asset_risk = float(asset_scores.head(3)["asset_risk_score"].mean()) if not asset_scores.empty else 0.0
+
+    refinancing_risk = float(scenario["refinancing_risk_score"])
+    dividend_risk = float(np.clip(100 - scenario["dividend_sustainability_score"], 0, 100))
+    asset_risk = float(np.clip(avg_asset_risk, 0, 100))
+    disclosure_quality_risk = float(np.clip(high_flags * 35 + open_flags * 12, 0, 100))
+    ai_readiness_risk = float(np.clip((5 - ai_ready_score) * 20, 0, 100))
+
+    rows = [
+        {
+            "category": "Refinancing Risk",
+            "score": refinancing_risk,
+            "label": attention_label(refinancing_risk),
+            "why": "near-term maturity와 floating-rate exposure가 금리 충격 시 현금흐름과 차입 비용을 동시에 압박합니다.",
+            "action": "24개월 내 maturity별 lender status, term sheet, refinancing timetable을 확인합니다.",
+        },
+        {
+            "category": "Dividend Sustainability",
+            "score": dividend_risk,
+            "label": attention_label(dividend_risk),
+            "why": "dividend coverage가 약해지면 투자자 신뢰와 배당 guidance의 방어력이 낮아집니다.",
+            "action": "FFO/AFFO bridge, dividend buffer, cash balance 활용 가능성을 함께 점검합니다.",
+        },
+        {
+            "category": "Asset Risk",
+            "score": asset_risk,
+            "label": attention_label(asset_risk),
+            "why": "asset-level occupancy, WALE, tenant concentration, capex risk가 NOI와 valuation narrative를 좌우합니다.",
+            "action": "상위 risk asset의 lease rollover, capex plan, tenant renewal probability를 확인합니다.",
+        },
+        {
+            "category": "Disclosure Quality",
+            "score": disclosure_quality_risk,
+            "label": attention_label(disclosure_quality_risk),
+            "why": "disclosure flag가 많거나 severity가 높으면 Investor Q&A와 management narrative의 일관성이 약해집니다.",
+            "action": "High severity flag부터 source data, owner, target date를 지정해 정리합니다.",
+        },
+        {
+            "category": "AI Readiness",
+            "score": ai_readiness_risk,
+            "label": attention_label(ai_readiness_risk),
+            "why": "Data Quality와 KPI standardization이 낮으면 AI Memo와 Investor Q&A 자동화가 확장되기 어렵습니다.",
+            "action": "source-of-truth field, KPI dictionary, approval workflow를 우선 정의합니다.",
+        },
+    ]
+
+    category_df = pd.DataFrame(rows)
+    overall_score = float(
+        sum(row["score"] * RISK_WEIGHTS[row["category"]] for row in rows)
+    )
+    overall = {
+        "overall_score": overall_score,
+        "overall_label": attention_label(overall_score),
+        "dividend_coverage": float(scenario["dividend_coverage"]),
+        "dividend_buffer_krw_bn": float(scenario["dividend_buffer_krw_bn"]),
+        "ai_readiness_score": ai_ready_score,
+        "open_flags": open_flags,
+        "high_flags": high_flags,
+    }
+    return category_df.sort_values("score", ascending=False), overall
+
+
+def top_cfo_alerts(category_scores: pd.DataFrame, limit: int = 3) -> pd.DataFrame:
+    alerts = category_scores.sort_values("score", ascending=False).head(limit).copy()
+    alerts["alert_rank"] = range(1, len(alerts) + 1)
+    return alerts[["alert_rank", "category", "score", "label", "why", "action"]]
 
 
 def executive_signal_table(

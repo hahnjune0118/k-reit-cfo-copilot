@@ -30,7 +30,7 @@ reit_flags = flags[flags["reit_id"] == reit_id]
 hero(
     "Management narrative generator",
     "숫자를 CFO-ready language와 Investor Q&A draft로 전환",
-    "v02는 외부 LLM API를 사용하지 않습니다. approved data field와 rule-based logic만으로 "
+    "현재 버전은 외부 LLM API를 사용하지 않습니다. approved data field와 rule-based logic만으로 "
     "CFO Memo와 Investor Q&A 초안을 생성해 향후 AI workflow의 구조를 보여줍니다.",
 )
 

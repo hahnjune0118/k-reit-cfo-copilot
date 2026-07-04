@@ -2,27 +2,26 @@
 
 **K-REIT CFO Copilot: AI-powered decision intelligence for listed REIT CFOs, AMCs, and IR teams.**
 
-현재 버전: **v02**
+현재 버전: **v04**
 
 ## Project Overview
 
-K-REIT CFO Copilot은 상장 리츠 CFO, AMC, IR팀이 금리, 차입, 자산, 세금, 배당, 공시 품질 리스크를 하나의 Dashboard에서 진단하고, 시나리오 분석 결과를 CFO 보고 메모와 Investor Q&A로 전환하는 **client-facing AX prototype**입니다.
+K-REIT CFO Copilot은 상장 REIT CFO, AMC, IR팀이 금리, 차입, 자산, 세금, 배당, 공시 품질 리스크를 하나의 Dashboard에서 진단하고, Scenario Engine 결과를 CFO 보고 메모와 Investor Q&A로 전환하는 **client-facing AX prototype**입니다.
 
-이 프로젝트는 회계 담당자를 위한 내부 자동화 도구가 아닙니다. CFO, AMC, IR팀이 경영 의사결정과 투자자 커뮤니케이션에 바로 사용할 수 있는 consulting-style decision intelligence platform을 지향합니다.
+이 프로젝트는 회계 담당자를 위한 내부 자동화 도구가 아닙니다. CFO가 오늘 어디에 attention을 먼저 배분해야 하는지 판단하도록 돕는 consulting-style decision intelligence platform입니다.
 
 ## Client Pain Point
 
-상장 REIT 의사결정은 보통 DART 공시, IR 자료, 차입 스케줄, 자산관리 파일, 세무 검토, Excel 모델에 흩어져 있습니다. 이로 인해 다음 문제가 반복됩니다.
+상장 REIT 의사결정은 DART 공시, IR 자료, 차입 스케줄, 자산관리 파일, 세무 검토, Excel 모델에 흩어져 있습니다.
 
-- 금리 변동과 차입 만기 리스크가 배당 지속 가능성과 분리되어 검토됩니다.
-- 임대료, 자산가치, LTV, 세금 영향이 하나의 Scenario Engine에서 연결되지 않습니다.
-- CFO 보고용 management narrative와 Investor Q&A가 매번 수작업으로 작성됩니다.
-- 공시 품질과 Data Quality 이슈가 AI Readiness 진단으로 이어지지 못합니다.
-- AMC의 자산 단위 리스크와 IR팀의 투자자 커뮤니케이션이 같은 데이터 기반으로 연결되지 않습니다.
+- refinancing risk와 dividend sustainability가 분리되어 검토됩니다.
+- asset risk, disclosure quality, AI Readiness가 CFO attention allocation으로 연결되지 않습니다.
+- CFO Dashboard가 데이터를 보여주기만 하고 “오늘 무엇을 먼저 봐야 하는지” 알려주지 못합니다.
+- Investor Q&A와 management narrative가 정량 signal과 연결되지 않습니다.
 
 ## Target Users
 
-- **CFO**: refinancing risk, dividend sustainability, tax-adjusted cash flow, LTV, 배당 정책을 한 화면에서 점검해야 하는 의사결정자
+- **CFO**: refinancing, dividend, asset, disclosure, AI Readiness 중 어디를 먼저 확인해야 하는지 판단해야 하는 의사결정자
 - **AMC**: 자산별 NOI, occupancy, WALE, tenant concentration, capex risk를 투자자 설명 가능한 형태로 정리해야 하는 운용 조직
 - **IR팀**: 금리, 배당, 자산가치, 공시 품질 관련 질문에 일관된 Investor Q&A와 disclosure narrative가 필요한 커뮤니케이션 조직
 
@@ -63,10 +62,17 @@ k-reit-cfo-copilot/
    CFO, AMC, IR팀의 실제 업무 pain point를 business risk와 Copilot response로 연결합니다.
 
 2. **CFO Executive Dashboard**  
-   refinancing risk, dividend coverage, tax-adjusted cash flow, AI Readiness, disclosure flags를 CFO 관점에서 요약합니다.
+   v04에서는 Dashboard를 attention allocation tool로 강화했습니다. Overall Risk Score와 5개 category Risk Score를 계산하고 Top 3 CFO Alerts를 제시합니다.
+
+   리스크 category:
+   - Refinancing Risk
+   - Dividend Sustainability
+   - Asset Risk
+   - Disclosure Quality
+   - AI Readiness
 
 3. **Scenario Engine**  
-   interest rate shock, rent change, asset value change, tax impact 슬라이더로 배당 지속 가능성, LTV, tax-adjusted cash flow 변화를 시뮬레이션합니다.
+   금리 충격, 임대료 변화율, 자산가치 변화율, 세금효과 반영 여부를 기반으로 Scenario-adjusted NOI, FFO, AFFO, LTV change, dividend buffer, refinancing risk level을 계산합니다.
 
 4. **자산 및 차입 리스크**  
    자산별 Risk Score, debt maturity wall, floating-rate exposure, LTV, disclosure flags를 함께 보여줍니다.
@@ -77,13 +83,33 @@ k-reit-cfo-copilot/
 6. **데이터 품질 및 AI Readiness**  
    Data Quality, KPI standardization, scenario capability, tax-finance integration, AI use case readiness를 진단합니다.
 
+## CFO Executive Dashboard v04
+
+v04 Dashboard의 business purpose는 단순한 data display가 아닙니다. CFO가 다음 질문에 답할 수 있도록 attention allocation을 지원합니다.
+
+> CFO가 오늘 가장 먼저 확인해야 할 리스크는 무엇인가?
+
+Dashboard는 다음 signal을 계산합니다.
+
+- **Overall Risk Score**: category별 Risk Score의 가중 평균
+- **Refinancing Risk**: near-term maturity, floating-rate exposure, LTV, interest burden 기반
+- **Dividend Sustainability**: dividend coverage와 dividend buffer 기반
+- **Asset Risk**: occupancy, WALE, tenant concentration, capex risk 기반
+- **Disclosure Quality**: open disclosure flag 및 high-severity flag 기반
+- **AI Readiness**: Data Quality 및 KPI standardization readiness 기반
+
+각 risk는 `Low`, `Watch`, `High` label로 표시되며, Top 3 CFO Alerts에는 다음 설명이 포함됩니다.
+
+- CFO가 오늘 가장 먼저 확인해야 할 리스크
+- 왜 이 리스크가 중요한가
+- 권고 액션
+
 ## Business Impact
 
-- CFO가 금리, 차입, 자산, 세금, 배당 리스크를 하나의 Dashboard에서 빠르게 점검할 수 있습니다.
-- AMC는 자산별 risk ranking을 투자자 설명 가능한 management narrative로 전환할 수 있습니다.
-- IR팀은 반복되는 Investor Q&A에 대해 데이터 기반의 일관된 답변 초안을 만들 수 있습니다.
+- CFO가 refinancing, dividend, asset, disclosure, AI Readiness 중 가장 먼저 볼 영역을 빠르게 판단할 수 있습니다.
+- AMC는 asset Risk Score와 CFO attention signal을 연결해 더 설득력 있는 management narrative를 만들 수 있습니다.
+- IR팀은 반복되는 Investor Q&A에 대해 Dashboard signal 기반의 일관된 답변 초안을 만들 수 있습니다.
 - Data Quality와 disclosure flags를 AI Readiness roadmap으로 연결할 수 있습니다.
-- AX consulting 관점에서 진단, 시나리오, 보고, 커뮤니케이션, readiness까지 하나의 story로 제시할 수 있습니다.
 
 ## Tech Stack
 
@@ -94,7 +120,7 @@ k-reit-cfo-copilot/
 
 ## Versioning
 
-현재 릴리스는 **v02**입니다. 향후 feature update는 `v03`, `v04`, `v05` 형식으로 순차 증가해야 합니다.
+현재 릴리스는 **v04**입니다. 향후 feature update는 `v05`, `v06`, `v07` 형식으로 순차 증가해야 합니다.
 
 버전이 변경될 때는 다음 파일과 앱 표시를 함께 업데이트합니다.
 
@@ -106,13 +132,10 @@ k-reit-cfo-copilot/
 
 ## Future Roadmap
 
+- CFO Alert와 AI Memo 자동 연결
+- covenant headroom, hedge ratio, refinancing assumption 추가
 - DART, 시장금리, 차입 스케줄, 자산관리, IR 자료 connector 연동
-- AFFO, covenant headroom, hedge ratio, refinancing assumption 고도화
-- 세무 로직 확장: 배당가능이익, 보유세, 거래세, withholding, taxable income bridge
-- 승인 workflow 기반 AI Memo 및 Investor Q&A governance
-- 공시 자료와 IR deck 기반 retrieval-augmented generation
-- CFO, AMC, IR팀별 role-based view
-- board memo, lender pack, investor FAQ export 기능
+- CFO, AMC, IR팀별 role-based Dashboard
 
 ## Run Locally
 

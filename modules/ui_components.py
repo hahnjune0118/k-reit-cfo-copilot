@@ -11,13 +11,13 @@ VERSION_FILE = BASE_DIR / "VERSION.md"
 
 def get_app_version() -> str:
     if not VERSION_FILE.exists():
-        return "v02"
+        return "v04"
 
     for line in VERSION_FILE.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if stripped.startswith("Current version:"):
             return stripped.split(":", 1)[1].strip()
-    return "v02"
+    return "v04"
 
 
 APP_VERSION = get_app_version()
