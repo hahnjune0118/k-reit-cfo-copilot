@@ -4,13 +4,13 @@
 
 ## Project Overview
 
-This Streamlit MVP is a client-facing AX consulting prototype for listed Korean REIT CFOs, AMCs, IR teams, and risk management teams. It is designed to look and feel like a decision intelligence platform, not an internal accounting automation tool.
+This Streamlit MVP is a client-facing AX consulting prototype for listed Korean REIT CFOs, AMCs, and IR teams. It is designed to look and feel like a decision intelligence platform, not an internal accounting automation tool.
 
 The product vision is to help leadership teams move from fragmented financial and operating data to scenario-based decision support, management narrative generation, investor communication, disclosure quality improvement, and AX readiness diagnostics.
 
 ## Customer Pain Point
 
-Listed Korean REIT CFOs, AMCs, IR teams, and risk management teams need to explain dividend sustainability, refinancing exposure, asset risk, tax impact, and disclosure quality under changing market conditions. In practice, the inputs often live across DART disclosures, IR decks, lender workbooks, valuation files, tax schedules, and manually maintained Excel models.
+Listed Korean REIT CFOs, AMCs, and IR teams need to explain dividend sustainability, refinancing exposure, asset risk, tax impact, and disclosure quality under changing market conditions. In practice, the inputs often live across DART disclosures, IR decks, lender workbooks, valuation files, tax schedules, and manually maintained Excel models.
 
 That fragmentation creates several business problems:
 
@@ -25,7 +25,6 @@ That fragmentation creates several business problems:
 - **CFOs** who need board-ready views of refinancing risk, dividend sustainability, tax-adjusted cash flow, and capital-market pressure.
 - **AMCs** that need asset-level risk rankings connected to occupancy, WALE, tenant concentration, capex need, valuation movement, and debt structure.
 - **IR teams** that need consistent investor messaging, Q&A drafts, and disclosure-ready explanations grounded in structured evidence.
-- **Risk management teams** that need early warning indicators for maturity walls, floating-rate exposure, asset concentration, disclosure gaps, and AI readiness controls.
 
 ## Solution Architecture
 
