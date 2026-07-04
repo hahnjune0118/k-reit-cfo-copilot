@@ -6,7 +6,7 @@ from modules.risk_scoring import debt_maturity_wall, refinancing_risk_table, sco
 from modules.ui_components import format_krw_bn, hero, setup_page
 
 
-setup_page("4. Asset & Debt Risk", "Identify asset-level and debt maturity risk drivers")
+setup_page("4. 자산 및 차입 리스크", "asset-level Risk Score와 debt maturity wall 진단")
 
 data = load_all_data()
 reits = data["reits"]
@@ -14,15 +14,15 @@ assets = data["assets"]
 debt = data["debt"]
 flags = data["flags"]
 
-scope_options = ["All listed REITs"] + reit_options(reits)
-scope = st.sidebar.selectbox("Scope", scope_options)
+scope_options = ["전체 상장 REIT sample"] + reit_options(reits)
+scope = st.sidebar.selectbox("분석 범위", scope_options)
 
-if scope == "All listed REITs":
+if scope == "전체 상장 REIT sample":
     scope_reits = reits
     scope_assets = assets
     scope_debt = debt
     scope_flags = flags
-    title_name = "listed K-REIT sample"
+    title_name = "전체 상장 REIT sample"
 else:
     reit_id = reit_id_from_name(reits, scope)
     scope_reits = reits[reits["reit_id"] == reit_id]
@@ -33,9 +33,9 @@ else:
 
 hero(
     "Risk driver map",
-    f"Asset and debt risk view for {title_name}",
-    "This page ranks assets by operating risk and connects that view to maturity concentration, floating-rate "
-    "exposure, and disclosure items that can affect investor confidence.",
+    f"{title_name}: asset 및 debt risk view",
+    "이 화면은 occupancy, WALE, tenant concentration, capex need를 기반으로 asset Risk Score를 산출하고 "
+    "maturity concentration, floating-rate exposure, disclosure flags와 연결합니다.",
 )
 
 refi = refinancing_risk_table(scope_reits, scope_debt)
@@ -46,8 +46,8 @@ avg_refi_score = refi["refinancing_risk_score"].mean()
 cols = st.columns(4)
 cols[0].metric("Debt in scope", format_krw_bn(total_debt, 0))
 cols[1].metric("Near-term maturity", format_krw_bn(near_term, 0))
-cols[2].metric("Avg refi risk", f"{avg_refi_score:.0f}/100")
-cols[3].metric("Disclosure flags", f"{len(scope_flags)}")
+cols[2].metric("Avg refi Risk Score", f"{avg_refi_score:.0f}/100")
+cols[3].metric("Disclosure flags", f"{len(scope_flags)}건")
 
 left, right = st.columns([1.1, 1])
 
@@ -82,8 +82,8 @@ with right:
         ].rename(
             columns={
                 "reit_name": "REIT",
-                "risk_tier": "Risk",
-                "refinancing_risk_score": "Score",
+                "risk_tier": "Risk tier",
+                "refinancing_risk_score": "Refi Risk Score",
                 "near_term_debt_pct": "Near-term %",
                 "floating_rate_pct": "Floating %",
                 "weighted_coupon_pct": "Coupon %",
@@ -106,7 +106,7 @@ asset_chart = px.scatter(
     hover_name="asset_name",
     hover_data=["reit_name", "sector", "occupancy_pct", "top_tenant_share_pct", "capex_need_pct"],
     color_discrete_map={"High": "#c94f4f", "Medium": "#b76e00", "Low": "#007c89"},
-    labels={"wale_years": "WALE (years)", "asset_risk_score": "Asset risk score"},
+    labels={"wale_years": "WALE (years)", "asset_risk_score": "Asset Risk Score"},
 )
 asset_chart.update_layout(height=420, margin=dict(l=10, r=10, t=20, b=10))
 st.plotly_chart(asset_chart, width="stretch")
@@ -136,9 +136,9 @@ st.dataframe(
             "wale_years": "WALE",
             "top_tenant_share_pct": "Top tenant %",
             "capex_need_pct": "Capex need %",
-            "risk_tier": "Risk",
-            "asset_risk_score": "Score",
-            "strategic_importance": "Strategic note",
+            "risk_tier": "Risk tier",
+            "asset_risk_score": "Asset Risk Score",
+            "strategic_importance": "전략적 해석",
         }
     ),
     width="stretch",
@@ -150,14 +150,13 @@ if not scope_flags.empty:
     st.dataframe(
         scope_flags[["area", "flag", "severity", "decision_risk", "recommended_action"]].rename(
             columns={
-                "area": "Area",
+                "area": "공시 영역",
                 "flag": "Flag",
                 "severity": "Severity",
-                "decision_risk": "Decision risk",
-                "recommended_action": "Recommended action",
+                "decision_risk": "의사결정 리스크",
+                "recommended_action": "권고 Action",
             }
         ),
         width="stretch",
         hide_index=True,
     )
-

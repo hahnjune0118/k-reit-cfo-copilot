@@ -122,8 +122,8 @@ def scenario_label(
     tax_impact_pct: float,
 ) -> str:
     return (
-        f"{rate_shock_bp:+}bp rates | {rent_change_pct:+.1f}% rent | "
-        f"{asset_value_change_pct:+.1f}% asset value | {tax_impact_pct:+.1f}% tax drag"
+        f"금리 {rate_shock_bp:+}bp | rent {rent_change_pct:+.1f}% | "
+        f"asset value {asset_value_change_pct:+.1f}% | tax impact {tax_impact_pct:+.1f}%"
     )
 
 
@@ -150,7 +150,7 @@ def scenario_waterfall(scenario: dict[str, float | str]) -> pd.DataFrame:
         [
             {"driver": "Base FFO", "amount_krw_bn": scenario["base_ffo_krw_bn"], "measure": "absolute"},
             {"driver": "Rent change", "amount_krw_bn": scenario["rent_delta_krw_bn"], "measure": "relative"},
-            {"driver": "Rate/refi shock", "amount_krw_bn": -scenario["interest_delta_krw_bn"], "measure": "relative"},
+            {"driver": "금리/refi shock", "amount_krw_bn": -scenario["interest_delta_krw_bn"], "measure": "relative"},
             {"driver": "Tax impact", "amount_krw_bn": -scenario["tax_delta_krw_bn"], "measure": "relative"},
             {"driver": "Scenario cash flow", "amount_krw_bn": scenario["tax_adjusted_cash_flow_krw_bn"], "measure": "total"},
         ]

@@ -7,24 +7,24 @@ from modules.scenario_engine import run_peer_scenarios, run_scenario, scenario_w
 from modules.ui_components import format_krw_bn, format_pct, hero, setup_page
 
 
-setup_page("3. Scenario Engine", "Interest rate, rent, asset value, and tax-adjusted scenario analysis")
+setup_page("3. Scenario Engine", "금리, rent, asset value, tax impact 기반 scenario analysis")
 
 data = load_all_data()
 reits = data["reits"]
 assets = data["assets"]
 debt = data["debt"]
 
-selected_name = st.sidebar.selectbox("REIT", reit_options(reits), index=0)
+selected_name = st.sidebar.selectbox("REIT 선택", reit_options(reits), index=0)
 reit_id = reit_id_from_name(reits, selected_name)
 reit = reits[reits["reit_id"] == reit_id].iloc[0]
 reit_assets = assets[assets["reit_id"] == reit_id]
 reit_debt = debt[debt["reit_id"] == reit_id]
 
 hero(
-    "Scenario cockpit",
-    "Stress the variables investors ask about most often",
-    "The scenario model translates interest-rate shocks, rent movement, asset-value pressure, and tax impact "
-    "into refinancing risk, dividend coverage, LTV, and tax-adjusted cash flow.",
+    "Scenario Engine",
+    "투자자가 가장 자주 묻는 변수들을 CFO 관점으로 stress test",
+    "interest rate shock, rent change, asset value change, tax impact를 tax-adjusted cash flow, "
+    "dividend coverage, refinancing risk, LTV로 연결합니다.",
 )
 
 st.subheader("Scenario Assumptions")
@@ -51,14 +51,14 @@ scenario = run_scenario(
 metric_cols = st.columns(5)
 metric_cols[0].metric("Tax-adjusted cash flow", format_krw_bn(scenario["tax_adjusted_cash_flow_krw_bn"], 1))
 metric_cols[1].metric("Dividend coverage", f"{scenario['dividend_coverage']:.2f}x", scenario["dividend_status"])
-metric_cols[2].metric("Refinancing risk", f"{scenario['refinancing_risk_score']:.0f}/100", scenario["refinancing_status"])
+metric_cols[2].metric("Refinancing Risk Score", f"{scenario['refinancing_risk_score']:.0f}/100", scenario["refinancing_status"])
 metric_cols[3].metric("Stressed LTV", format_pct(scenario["stressed_ltv_pct"]))
 metric_cols[4].metric("Dividend buffer", format_krw_bn(scenario["dividend_buffer_krw_bn"], 1))
 
 left, right = st.columns([1.2, 1])
 
 with left:
-    st.subheader("Cash-Flow Bridge")
+    st.subheader("Cash-flow Bridge")
     waterfall = scenario_waterfall(scenario)
     fig = go.Figure(
         go.Waterfall(
@@ -82,12 +82,12 @@ with left:
 with right:
     st.subheader("Scenario Detail")
     detail_rows = [
-        {"Driver": "Base FFO", "Impact": format_krw_bn(scenario["base_ffo_krw_bn"], 1)},
-        {"Driver": "Rent change", "Impact": format_krw_bn(scenario["rent_delta_krw_bn"], 1)},
-        {"Driver": "Rate/refinancing shock", "Impact": f"-{format_krw_bn(scenario['interest_delta_krw_bn'], 1)}"},
-        {"Driver": "Tax impact", "Impact": f"-{format_krw_bn(scenario['tax_delta_krw_bn'], 1)}"},
-        {"Driver": "Near-term debt", "Impact": format_krw_bn(scenario["near_term_debt_krw_bn"], 0)},
-        {"Driver": "Floating-rate debt share", "Impact": format_pct(scenario["floating_rate_pct"])},
+        {"주요 Driver": "Base FFO", "Impact": format_krw_bn(scenario["base_ffo_krw_bn"], 1)},
+        {"주요 Driver": "Rent change", "Impact": format_krw_bn(scenario["rent_delta_krw_bn"], 1)},
+        {"주요 Driver": "Rate/refinancing shock", "Impact": f"-{format_krw_bn(scenario['interest_delta_krw_bn'], 1)}"},
+        {"주요 Driver": "Tax impact", "Impact": f"-{format_krw_bn(scenario['tax_delta_krw_bn'], 1)}"},
+        {"주요 Driver": "Near-term debt", "Impact": format_krw_bn(scenario["near_term_debt_krw_bn"], 0)},
+        {"주요 Driver": "Floating-rate debt share", "Impact": format_pct(scenario["floating_rate_pct"])},
     ]
     st.dataframe(detail_rows, width="stretch", hide_index=True)
 
@@ -114,4 +114,3 @@ peer_chart.add_hline(y=1.0, line_dash="dash", line_color="#667085")
 peer_chart.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=10))
 peer_chart.update_traces(textposition="outside", cliponaxis=False)
 st.plotly_chart(peer_chart, width="stretch")
-

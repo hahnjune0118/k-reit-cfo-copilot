@@ -8,7 +8,7 @@ from modules.ui_components import format_krw_bn, hero, setup_page, signal_card
 
 setup_page(
     "K-REIT CFO Copilot",
-    "AI-powered decision intelligence for listed REIT CFOs, AMCs, and IR teams",
+    "상장 REIT CFO, AMC, IR팀을 위한 AI-powered decision intelligence",
 )
 
 data = load_all_data()
@@ -21,39 +21,40 @@ signals = executive_signal_table(
 )
 
 hero(
-    "AX consulting prototype",
-    "Decision intelligence for listed REIT leadership teams",
-    "K-REIT CFO Copilot converts fragmented portfolio, debt, tax, disclosure, and IR signals into "
-    "scenario-based decisions, risk oversight, management narrative, and AI readiness diagnostics.",
+    "client-facing AX prototype",
+    "금리, 차입, 자산, 세금, 배당, 공시 품질 리스크를 하나의 Dashboard로 연결",
+    "K-REIT CFO Copilot은 상장 리츠 CFO, AMC, IR팀이 fragmented portfolio data를 "
+    "Scenario Engine, CFO briefing memo, Investor Q&A, AI Readiness 진단으로 전환하도록 설계된 "
+    "consulting-style decision intelligence platform입니다.",
 )
 
 col1, col2, col3 = st.columns(3)
 with col1:
     signal_card(
-        "Client problem",
-        "Fragmented decisions",
-        "Debt, asset, tax, dividend, and disclosure workstreams are usually reviewed in separate files.",
+        "고객 Pain Point",
+        "분산된 의사결정",
+        "차입, 자산, 세금, 배당, 공시 품질 데이터가 여러 파일과 보고서에 흩어져 있습니다.",
     )
 with col2:
     signal_card(
-        "Copilot lens",
+        "Copilot Lens",
         "CFO action cockpit",
-        "The prototype brings risk signals into one decision model for CFOs, AMCs, and IR teams.",
+        "refinancing risk, dividend sustainability, Data Quality를 하나의 decision model로 연결합니다.",
     )
 with col3:
     signal_card(
-        "Business impact",
-        "Faster narrative alignment",
-        "Scenario outputs flow into briefing memos, investor Q&A, and AX readiness priorities.",
+        "Business Impact",
+        "보고와 커뮤니케이션 연결",
+        "Scenario 결과를 CFO Memo, Investor Q&A, AX readiness roadmap으로 전환합니다.",
     )
 
 st.subheader("Portfolio Signal Snapshot")
 
 metric_cols = st.columns(4)
-metric_cols[0].metric("Listed REITs in sample", f"{len(data['reits'])}")
+metric_cols[0].metric("Sample 상장 REIT", f"{len(data['reits'])}개")
 metric_cols[1].metric("Gross asset value", format_krw_bn(data["reits"]["gross_asset_value_krw_bn"].sum()))
-metric_cols[2].metric("Debt facilities", f"{len(data['debt'])}")
-metric_cols[3].metric("Open disclosure flags", f"{len(data['flags'])}")
+metric_cols[2].metric("Debt facility", f"{len(data['debt'])}건")
+metric_cols[3].metric("Disclosure flags", f"{len(data['flags'])}건")
 
 chart_col, table_col = st.columns([1.25, 1])
 
@@ -64,7 +65,7 @@ with chart_col:
         y="refinancing_risk_score",
         color="risk_tier",
         color_discrete_map={"High": "#c94f4f", "Medium": "#b76e00", "Low": "#007c89"},
-        labels={"reit_name": "", "refinancing_risk_score": "Refinancing risk score"},
+        labels={"reit_name": "", "refinancing_risk_score": "Refinancing Risk Score"},
         text=signals["refinancing_risk_score"].round(0),
     )
     fig.update_layout(height=360, margin=dict(l=10, r=10, t=20, b=10), showlegend=True)
@@ -85,10 +86,10 @@ with table_col:
         ].rename(
             columns={
                 "reit_name": "REIT",
-                "dividend_status": "Dividend status",
+                "dividend_status": "배당 상태",
                 "dividend_coverage": "Coverage",
-                "refinancing_risk_score": "Refi risk",
-                "ai_readiness_score": "AI readiness",
+                "refinancing_risk_score": "Refi Risk",
+                "ai_readiness_score": "AI Readiness",
                 "open_flags": "Flags",
             }
         ),
@@ -96,40 +97,39 @@ with table_col:
         hide_index=True,
     )
 
-st.subheader("Six-Page Decision Platform")
+st.subheader("Six Dashboard Modules")
 
 modules = [
     {
-        "Page": "Client Pain Points",
-        "Decision question": "Where does the CFO workflow break today?",
-        "Primary output": "Pain point to business impact map",
+        "Module": "고객 Pain Point",
+        "핵심 질문": "CFO, AMC, IR팀의 업무 pain point는 어디에서 발생하는가?",
+        "주요 Output": "Pain point와 business impact map",
     },
     {
-        "Page": "Executive Dashboard",
-        "Decision question": "Which risk signals deserve leadership attention now?",
-        "Primary output": "Dividend, refinancing, readiness, and disclosure cockpit",
+        "Module": "CFO Executive Dashboard",
+        "핵심 질문": "CFO가 지금 봐야 할 리스크 signal은 무엇인가?",
+        "주요 Output": "배당, refinancing, AI Readiness, disclosure cockpit",
     },
     {
-        "Page": "Scenario Engine",
-        "Decision question": "How do rates, rents, values, and tax move cash flow?",
-        "Primary output": "Tax-adjusted cash flow and dividend coverage bridge",
+        "Module": "Scenario Engine",
+        "핵심 질문": "금리, rent, asset value, tax impact가 cash flow를 어떻게 바꾸는가?",
+        "주요 Output": "tax-adjusted cash flow 및 dividend coverage bridge",
     },
     {
-        "Page": "Asset & Debt Risk",
-        "Decision question": "Which assets and maturities are driving risk?",
-        "Primary output": "Asset risk ranking and debt maturity wall",
+        "Module": "자산 및 차입 리스크",
+        "핵심 질문": "어떤 asset과 maturity가 리스크를 주도하는가?",
+        "주요 Output": "asset Risk Score ranking 및 debt maturity wall",
     },
     {
-        "Page": "AI Memo & Investor Q&A",
-        "Decision question": "How should management explain the numbers?",
-        "Primary output": "Rule-based CFO memo and investor answer draft",
+        "Module": "AI Memo & Investor Q&A",
+        "핵심 질문": "숫자를 어떤 management narrative로 설명할 것인가?",
+        "주요 Output": "rule-based CFO Memo 및 Investor Q&A draft",
     },
     {
-        "Page": "Data Quality & AI Readiness",
-        "Decision question": "Is the client ready to scale AI-enabled reporting?",
-        "Primary output": "AX readiness score and data remediation roadmap",
+        "Module": "데이터 품질 및 AI Readiness",
+        "핵심 질문": "AI-enabled reporting을 확장할 데이터 기반이 준비되어 있는가?",
+        "주요 Output": "Data Quality 진단 및 AX readiness roadmap",
     },
 ]
 
 st.dataframe(modules, width="stretch", hide_index=True)
-

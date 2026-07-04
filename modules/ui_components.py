@@ -1,14 +1,40 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import streamlit as st
+
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+VERSION_FILE = BASE_DIR / "VERSION.md"
+
+
+def get_app_version() -> str:
+    if not VERSION_FILE.exists():
+        return "v02"
+
+    for line in VERSION_FILE.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("Current version:"):
+            return stripped.split(":", 1)[1].strip()
+    return "v02"
+
+
+APP_VERSION = get_app_version()
 
 
 def setup_page(page_title: str, subtitle: str | None = None) -> None:
     st.set_page_config(page_title=page_title, page_icon="KR", layout="wide")
     inject_global_css()
+    render_sidebar_version()
     st.title(page_title)
     if subtitle:
         st.caption(subtitle)
+
+
+def render_sidebar_version() -> None:
+    st.sidebar.markdown("---")
+    st.sidebar.caption(f"현재 버전: {APP_VERSION}")
 
 
 def inject_global_css() -> None:

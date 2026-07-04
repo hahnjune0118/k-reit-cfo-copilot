@@ -1,4 +1,4 @@
 reit_id,reit_name,ticker,sponsor_amc,listing_year,portfolio_theme,gross_asset_value_krw_bn,equity_market_cap_krw_bn,annual_revenue_krw_bn,annual_noi_krw_bn,annual_ffo_krw_bn,dividend_payout_krw_bn,cash_balance_krw_bn,occupancy_pct,wale_years,ltv_pct,fixed_rate_debt_pct,avg_debt_cost_pct,management_priority
-sk_reit,SK REIT,395400.KS,SK REIT Management,2021,Office and telecom infrastructure,3500,1150,214,156,108,104,82,98.1,4.9,47.5,61,4.2,Protect dividend credibility while managing office refinancing wall
-lotte_reit,Lotte REIT,330590.KS,Lotte AMC,2019,Retail anchored mixed-use assets,2500,820,168,119,82,86,48,97.4,6.1,49.2,55,4.4,Defend retail asset narrative and stabilize cash-flow visibility
-esr_ks_reit,ESR Kendall Square REIT,365550.KS,ESR Kendall Square REIT Management,2020,Logistics and distribution centers,3100,980,190,141,101,96,67,99.0,5.4,45.8,68,4.0,Convert logistics growth story into resilient investor guidance
+sk_reit,SK REIT,395400.KS,SK REIT Management,2021,Office and telecom infrastructure,3500,1150,214,156,108,104,82,98.1,4.9,47.5,61,4.2,오피스 refinancing wall을 관리하면서 배당 신뢰도를 방어
+lotte_reit,Lotte REIT,330590.KS,Lotte AMC,2019,Retail anchored mixed-use assets,2500,820,168,119,82,86,48,97.4,6.1,49.2,55,4.4,리테일 자산 narrative를 방어하고 현금흐름 가시성을 안정화
+esr_ks_reit,ESR Kendall Square REIT,365550.KS,ESR Kendall Square REIT Management,2020,Logistics and distribution centers,3100,980,190,141,101,96,67,99.0,5.4,45.8,68,4.0,물류 성장 스토리를 안정적인 투자자 guidance로 전환

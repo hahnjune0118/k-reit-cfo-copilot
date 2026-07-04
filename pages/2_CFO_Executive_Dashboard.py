@@ -8,7 +8,7 @@ from modules.scenario_engine import run_scenario
 from modules.ui_components import format_krw_bn, format_pct, hero, setup_page
 
 
-setup_page("2. Executive Dashboard", "CFO-level risk overview")
+setup_page("2. CFO Executive Dashboard", "CFO 관점의 dividend, refinancing, Data Quality signal")
 
 data = load_all_data()
 reits = data["reits"]
@@ -17,7 +17,7 @@ debt = data["debt"]
 flags = data["flags"]
 readiness = data["readiness"]
 
-selected_name = st.sidebar.selectbox("Portfolio", reit_options(reits), index=0)
+selected_name = st.sidebar.selectbox("Portfolio 선택", reit_options(reits), index=0)
 reit_id = reit_id_from_name(reits, selected_name)
 reit = reits[reits["reit_id"] == reit_id].iloc[0]
 reit_assets = assets[assets["reit_id"] == reit_id]
@@ -29,17 +29,17 @@ signals = executive_signal_table(reits, assets, debt, readiness, flags)
 selected_signal = signals[signals["reit_id"] == reit_id].iloc[0]
 
 hero(
-    "Executive cockpit",
-    f"{selected_name}: decision signals for the next management discussion",
-    f"Management priority: {reit['management_priority']}. The dashboard links dividend coverage, "
-    "refinancing risk, asset pressure, disclosure flags, and AI readiness into one leadership view.",
+    "Executive Dashboard",
+    f"{selected_name}: 다음 management discussion을 위한 핵심 signal",
+    f"Management priority: {reit['management_priority']}. 이 Dashboard는 dividend coverage, refinancing risk, "
+    "asset pressure, disclosure flags, AI Readiness를 CFO 관점의 leadership view로 연결합니다.",
 )
 
 col1, col2, col3, col4 = st.columns(4)
 col1.metric("Dividend coverage", f"{base['dividend_coverage']:.2f}x", base["dividend_status"])
-col2.metric("Refinancing risk", f"{base['refinancing_risk_score']:.0f}/100", base["refinancing_status"])
-col3.metric("Stressed LTV baseline", format_pct(base["stressed_ltv_pct"]), "Base case")
-col4.metric("AI readiness", f"{selected_signal['ai_readiness_score']:.1f}/5", f"{int(selected_signal['open_flags'])} flags")
+col2.metric("Refinancing Risk Score", f"{base['refinancing_risk_score']:.0f}/100", base["refinancing_status"])
+col3.metric("Stressed LTV", format_pct(base["stressed_ltv_pct"]), "base case")
+col4.metric("AI Readiness", f"{selected_signal['ai_readiness_score']:.1f}/5", f"{int(selected_signal['open_flags'])} flags")
 
 left, right = st.columns([1.15, 1])
 
@@ -55,7 +55,7 @@ with left:
         color_discrete_map={"High": "#c94f4f", "Medium": "#b76e00", "Low": "#007c89"},
         labels={
             "dividend_coverage": "Dividend coverage",
-            "refinancing_risk_score": "Refinancing risk score",
+            "refinancing_risk_score": "Refinancing Risk Score",
         },
     )
     fig.add_vline(x=1.0, line_dash="dash", line_color="#667085")
@@ -68,7 +68,7 @@ with right:
         go.Indicator(
             mode="gauge+number",
             value=base["dividend_sustainability_score"],
-            title={"text": "Dividend sustainability score"},
+            title={"text": "Dividend Sustainability Score"},
             gauge={
                 "axis": {"range": [0, 100]},
                 "bar": {"color": "#007c89"},
@@ -108,15 +108,14 @@ with bottom_right:
     st.subheader("Top Attention Items")
     asset_scores = score_assets(reit_assets).head(3)
     attention = asset_scores[["asset_name", "risk_tier", "asset_risk_score"]].rename(
-        columns={"asset_name": "Asset", "risk_tier": "Risk", "asset_risk_score": "Score"}
+        columns={"asset_name": "Asset", "risk_tier": "Risk tier", "asset_risk_score": "Asset Risk Score"}
     )
     st.dataframe(attention, width="stretch", hide_index=True)
     if not reit_flags.empty:
         st.dataframe(
             reit_flags[["area", "severity", "recommended_action"]].rename(
-                columns={"area": "Disclosure area", "severity": "Severity", "recommended_action": "Action"}
+                columns={"area": "공시 영역", "severity": "Severity", "recommended_action": "권고 Action"}
             ),
             width="stretch",
             hide_index=True,
         )
-
