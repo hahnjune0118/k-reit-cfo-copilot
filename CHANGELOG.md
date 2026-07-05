@@ -13,6 +13,8 @@
 - Scenario Engine이 ECOS 또는 sample market rate를 base interest rate assumption으로 사용하도록 업데이트했습니다.
 - Data Quality & AI Readiness page에 External Data Connection section을 추가했습니다.
 - README.md에 “v08 External API Data Layer” section을 추가하고 OpenDART, ECOS, KRX roadmap, API key management, fallback design을 설명했습니다.
+- Streamlit Cloud import 안정성을 위해 `modules/__init__.py`를 추가하고, `data_loader.py`가 API client import 실패 시에도 sample data fallback으로 동작하도록 lazy import wrapper를 적용했습니다.
+- `reit_options()`와 `reit_id_from_name(name)` wrapper compatibility를 추가해 기존 page import가 깨지지 않도록 했습니다.
 - OpenAI 또는 외부 LLM API는 추가하지 않았습니다.
 
 ## v07 - Portfolio Submission Polish for Samil PwC AX Node

@@ -4,10 +4,6 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
-from modules.api_clients.config import has_dart_api_key
-from modules.api_clients.dart_client import fetch_disclosure_list, find_corp_by_name
-from modules.api_clients.ecos_client import fetch_interest_rate_series, sample_interest_rate_series
-
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 DATA_DIR = BASE_DIR / "data"
@@ -63,9 +59,85 @@ def _attach_source_attrs(
     return frame
 
 
+def _has_dart_api_key() -> bool:
+    try:
+        from modules.api_clients.config import has_dart_api_key
+
+        return has_dart_api_key()
+    except Exception:
+        return False
+
+
+def _sample_interest_rate_series(message: str = "API unavailable; using sample market rate data.") -> pd.DataFrame:
+    try:
+        from modules.api_clients.ecos_client import sample_interest_rate_series
+
+        return sample_interest_rate_series(message)
+    except Exception:
+        end = pd.Timestamp.today().normalize()
+        dates = pd.bdate_range(end=end, periods=30)
+        frame = pd.DataFrame(
+            {
+                "date": dates,
+                "market_rate_pct": [3.45 + (idx % 5) * 0.01 for idx in range(len(dates))],
+                "stat_code": "sample",
+                "item_code": "sample",
+                "source": "sample",
+            }
+        )
+        return _attach_source_attrs(
+            frame,
+            "sample",
+            api_connected=False,
+            is_fallback=True,
+            status_message=message,
+        )
+
+
+def _fetch_interest_rate_series() -> pd.DataFrame:
+    try:
+        from modules.api_clients.ecos_client import fetch_interest_rate_series
+
+        return fetch_interest_rate_series()
+    except Exception:
+        return _sample_interest_rate_series("ECOS client unavailable; using sample market rate data.")
+
+
+def _find_corp_by_name(company_name: str) -> pd.DataFrame:
+    try:
+        from modules.api_clients.dart_client import find_corp_by_name
+
+        return find_corp_by_name(company_name)
+    except Exception:
+        frame = pd.DataFrame(columns=["corp_code", "corp_name", "stock_code", "modify_date"])
+        return _attach_source_attrs(
+            frame,
+            "sample",
+            api_connected=False,
+            is_fallback=True,
+            status_message="OpenDART client unavailable; company mapping skipped.",
+        )
+
+
+def _fetch_disclosure_list(corp_code: str, start_date: str, end_date: str) -> pd.DataFrame:
+    try:
+        from modules.api_clients.dart_client import fetch_disclosure_list
+
+        return fetch_disclosure_list(corp_code, start_date, end_date)
+    except Exception:
+        frame = pd.DataFrame()
+        return _attach_source_attrs(
+            frame,
+            "sample",
+            api_connected=False,
+            is_fallback=True,
+            status_message="OpenDART client unavailable; disclosure API skipped.",
+        )
+
+
 def load_reit_master_data(use_api: bool = True) -> pd.DataFrame:
     master = load_reits().copy()
-    if not use_api or not has_dart_api_key():
+    if not use_api or not _has_dart_api_key():
         return _attach_source_attrs(
             master,
             "sample",
@@ -76,7 +148,7 @@ def load_reit_master_data(use_api: bool = True) -> pd.DataFrame:
 
     matched_rows = []
     for _, reit in master.iterrows():
-        matches = find_corp_by_name(str(reit["reit_name"]))
+        matches = _find_corp_by_name(str(reit["reit_name"]))
         if not matches.empty:
             first = matches.iloc[0]
             matched_rows.append(
@@ -109,13 +181,13 @@ def load_reit_master_data(use_api: bool = True) -> pd.DataFrame:
 
 def load_market_rate_data(use_api: bool = True) -> pd.DataFrame:
     if not use_api:
-        return sample_interest_rate_series("API disabled; using sample market rate data.")
-    return fetch_interest_rate_series()
+        return _sample_interest_rate_series("API disabled; using sample market rate data.")
+    return _fetch_interest_rate_series()
 
 
 def load_disclosure_data(use_api: bool = True) -> pd.DataFrame:
     sample_flags = load_disclosure_flags().copy()
-    if not use_api or not has_dart_api_key():
+    if not use_api or not _has_dart_api_key():
         return _attach_source_attrs(
             sample_flags,
             "sample",
@@ -128,11 +200,11 @@ def load_disclosure_data(use_api: bool = True) -> pd.DataFrame:
     start = end - timedelta(days=365)
     disclosures = []
     for _, reit in load_reits().iterrows():
-        matches = find_corp_by_name(str(reit["reit_name"]))
+        matches = _find_corp_by_name(str(reit["reit_name"]))
         if matches.empty:
             continue
         corp_code = str(matches.iloc[0].get("corp_code", ""))
-        fetched = fetch_disclosure_list(corp_code, start.strftime("%Y%m%d"), end.strftime("%Y%m%d"))
+        fetched = _fetch_disclosure_list(corp_code, start.strftime("%Y%m%d"), end.strftime("%Y%m%d"))
         if fetched.empty:
             continue
         fetched = fetched.copy()
@@ -158,14 +230,25 @@ def load_disclosure_data(use_api: bool = True) -> pd.DataFrame:
     )
 
 
-def reit_options(reits: pd.DataFrame) -> list[str]:
-    return reits.sort_values("reit_name")["reit_name"].tolist()
+def reit_options(reits: pd.DataFrame | None = None) -> list[str]:
+    source = load_reits() if reits is None else reits
+    return source.sort_values("reit_name")["reit_name"].tolist()
 
 
-def reit_id_from_name(reits: pd.DataFrame, reit_name: str) -> str:
-    match = reits.loc[reits["reit_name"] == reit_name, "reit_id"]
+def reit_id_from_name(reits_or_name: pd.DataFrame | str, reit_name: str | None = None) -> str:
+    if reit_name is None:
+        reits = load_reits()
+        name = str(reits_or_name)
+    else:
+        reits = reits_or_name
+        name = reit_name
+
+    if not isinstance(reits, pd.DataFrame):
+        raise TypeError("reit_id_from_name expects reit_id_from_name(name) or reit_id_from_name(reits, name).")
+
+    match = reits.loc[reits["reit_name"] == name, "reit_id"]
     if match.empty:
-        raise ValueError(f"Unknown REIT name: {reit_name}")
+        raise ValueError(f"Unknown REIT name: {name}")
     return str(match.iloc[0])
 
 
