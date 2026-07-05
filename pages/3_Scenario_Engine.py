@@ -3,7 +3,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from modules.data_loader import load_all_data, reit_id_from_name, reit_options
+from modules.data_loader import load_all_data, load_market_rate_data, reit_id_from_name, reit_options
 from modules.scenario_engine import (
     cfo_interpretation,
     run_peer_scenarios,
@@ -30,9 +30,15 @@ setup_page(
 )
 
 data = load_all_data()
+market_rates = load_market_rate_data(use_api=True)
 reits = data["reits"]
 assets = data["assets"]
 debt = data["debt"]
+latest_market_rate = market_rates.sort_values("date").iloc[-1]
+base_market_rate = float(latest_market_rate["market_rate_pct"])
+rate_source = market_rates.attrs.get("source", "sample")
+rate_status_message = market_rates.attrs.get("status_message", "")
+rate_fallback = bool(market_rates.attrs.get("is_fallback", True))
 
 selected_name = st.sidebar.selectbox("REIT 선택", reit_options(reits), index=0)
 reit_id = reit_id_from_name(reits, selected_name)
@@ -45,6 +51,16 @@ hero(
     "CFO decision support를 위한 scenario-adjusted metrics",
     "이 화면은 금리, 임대료, 자산가치, 세금효과 변화가 dividend buffer와 refinancing risk에 어떤 영향을 주는지 "
     "간단하고 투명한 MVP 계산 방식으로 보여줍니다.",
+)
+
+st.subheader("Market Rate Assumption")
+rate_cols = st.columns(3)
+rate_cols[0].metric("Base market rate", format_pct(base_market_rate), rate_source)
+rate_cols[1].metric("ECOS 연결 상태", "Sample fallback" if rate_fallback else "Connected")
+rate_cols[2].metric("Scenario rate", format_pct(base_market_rate + 1.0), "slider 적용 전 예시 +100bp")
+st.caption(
+    f"Scenario Engine은 ECOS API에서 시장금리 데이터를 가져오려고 시도합니다. "
+    f"현재 기준 데이터는 {'sample/default data' if rate_fallback else 'real ECOS API data'}입니다. {rate_status_message}"
 )
 
 st.subheader("Scenario Assumptions")
@@ -67,6 +83,7 @@ base_case = run_scenario(
     rent_change_pct=0.0,
     asset_value_change_pct=0.0,
     tax_impact_pct=tax_impact,
+    base_market_rate_pct=base_market_rate,
 )
 scenario = run_scenario(
     reit,
@@ -76,6 +93,7 @@ scenario = run_scenario(
     rent_change_pct=rent_change,
     asset_value_change_pct=asset_value_change,
     tax_impact_pct=tax_impact,
+    base_market_rate_pct=base_market_rate,
 )
 
 st.caption(
@@ -89,10 +107,11 @@ metric_cols[1].metric("Interest expense impact", format_krw_bn(scenario["interes
 metric_cols[2].metric("FFO estimate", format_krw_bn(scenario["ffo_estimate_krw_bn"], 1))
 metric_cols[3].metric("AFFO estimate", format_krw_bn(scenario["affo_estimate_krw_bn"], 1))
 
-metric_cols = st.columns(3)
-metric_cols[0].metric("LTV change", f"{scenario['ltv_change_pctp']:+.1f}p", format_pct(scenario["stressed_ltv_pct"]))
-metric_cols[1].metric("Dividend buffer", format_krw_bn(scenario["dividend_buffer_krw_bn"], 1), scenario["dividend_status"])
-metric_cols[2].metric(
+metric_cols = st.columns(4)
+metric_cols[0].metric("Scenario market rate", format_pct(scenario["scenario_market_rate_pct"]), f"{scenario['effective_rate_shock_bp']:+.0f}bp effective shock")
+metric_cols[1].metric("LTV change", f"{scenario['ltv_change_pctp']:+.1f}p", format_pct(scenario["stressed_ltv_pct"]))
+metric_cols[2].metric("Dividend buffer", format_krw_bn(scenario["dividend_buffer_krw_bn"], 1), scenario["dividend_status"])
+metric_cols[3].metric(
     "Refinancing risk level",
     scenario["refinancing_status"],
     f"Risk Score {scenario['refinancing_risk_score']:.0f}/100",
@@ -199,6 +218,7 @@ with right:
         rent_change_pct=rent_change,
         asset_value_change_pct=asset_value_change,
         tax_impact_pct=tax_impact,
+        base_market_rate_pct=base_market_rate,
     )
     peer_chart = px.bar(
         peer.sort_values("dividend_buffer_krw_bn"),

@@ -1,7 +1,7 @@
 import plotly.express as px
 import streamlit as st
 
-from modules.data_loader import load_all_data, reit_id_from_name, reit_options
+from modules.data_loader import load_all_data, load_disclosure_data, load_market_rate_data, reit_id_from_name, reit_options
 from modules.risk_scoring import (
     data_quality_flags,
     readiness_roadmap,
@@ -17,6 +17,8 @@ setup_page(
 )
 
 data = load_all_data()
+market_rates = load_market_rate_data(use_api=True)
+external_disclosures = load_disclosure_data(use_api=True)
 reits = data["reits"]
 assets = data["assets"]
 debt = data["debt"]
@@ -60,6 +62,40 @@ hero(
     f"{selected_name} AX 진단 모듈",
     "AX consulting은 AI 기능을 붙이는 것에서 시작하지 않습니다. REIT CFO, AMC, IR팀이 신뢰할 수 있는 "
     "데이터 기반과 KPI 표준화, Scenario Capability, Tax-Finance Integration을 갖추었는지 먼저 진단합니다.",
+)
+
+st.subheader("External Data Connection")
+dart_fallback = bool(external_disclosures.attrs.get("is_fallback", True))
+ecos_fallback = bool(market_rates.attrs.get("is_fallback", True))
+latest_rate = float(market_rates.sort_values("date").iloc[-1]["market_rate_pct"]) if not market_rates.empty else 0.0
+connection_cols = st.columns(3)
+connection_cols[0].metric("OpenDART 연결 상태", "Sample fallback" if dart_fallback else "Connected")
+connection_cols[1].metric("ECOS 연결 상태", "Sample fallback" if ecos_fallback else "Connected")
+connection_cols[2].metric("Sample data fallback 여부", "예" if dart_fallback or ecos_fallback else "아니오", f"Base rate {latest_rate:.2f}%")
+st.caption(
+    "External API connection은 데이터 자동 수집, 데이터 최신성, 반복 업무 감소, 시나리오 분석 신뢰성 향상을 통해 "
+    "AX Readiness를 높입니다. API key가 없거나 응답이 비어 있으면 sample/mock data로 안전하게 fallback합니다."
+)
+st.dataframe(
+    [
+        {
+            "데이터 소스": "OpenDART",
+            "현재 용도": "공시 목록 및 disclosure signal 확보",
+            "상태": external_disclosures.attrs.get("status_message", "상태 정보 없음"),
+        },
+        {
+            "데이터 소스": "ECOS",
+            "현재 용도": "Scenario Engine market interest rate assumption",
+            "상태": market_rates.attrs.get("status_message", "상태 정보 없음"),
+        },
+        {
+            "데이터 소스": "KRX",
+            "현재 용도": "Future roadmap",
+            "상태": "v08에서는 placeholder roadmap으로 유지",
+        },
+    ],
+    width="stretch",
+    hide_index=True,
 )
 
 metric_cols = st.columns(4)

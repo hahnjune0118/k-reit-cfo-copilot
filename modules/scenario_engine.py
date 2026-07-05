@@ -41,6 +41,7 @@ def run_scenario(
     rent_change_pct: float = 0.0,
     asset_value_change_pct: float = 0.0,
     tax_impact_pct: float = 0.0,
+    base_market_rate_pct: float | None = None,
     current_year: int = CURRENT_YEAR,
 ) -> dict[str, float | str]:
     profile = debt_profile(debt, current_year=current_year)
@@ -55,10 +56,16 @@ def run_scenario(
     rent_delta = base_noi * rent_change_pct / 100
     adjusted_noi = base_noi + rent_delta
 
+    if base_market_rate_pct is None or pd.isna(base_market_rate_pct):
+        base_market_rate_pct = profile["weighted_coupon_pct"]
+    market_rate_gap_bp = (float(base_market_rate_pct) - profile["weighted_coupon_pct"]) * 100
+    effective_rate_shock_bp = rate_shock_bp + market_rate_gap_bp
+    scenario_market_rate_pct = float(base_market_rate_pct) + rate_shock_bp / 100
+
     floating_debt = profile["total_debt_krw_bn"] * profile["floating_rate_pct"] / 100
     near_term_debt = profile["near_term_debt_krw_bn"]
-    floating_interest_delta = floating_debt * rate_shock_bp / 10000
-    refinancing_interest_delta = near_term_debt * max(rate_shock_bp, 0) / 10000 * 0.35
+    floating_interest_delta = floating_debt * effective_rate_shock_bp / 10000
+    refinancing_interest_delta = near_term_debt * max(effective_rate_shock_bp, 0) / 10000 * 0.35
     total_interest_delta = floating_interest_delta + refinancing_interest_delta
 
     tax_delta = adjusted_noi * tax_impact_pct / 100
@@ -108,6 +115,10 @@ def run_scenario(
         "near_term_debt_pct": profile["near_term_debt_pct"],
         "floating_rate_pct": profile["floating_rate_pct"],
         "weighted_coupon_pct": profile["weighted_coupon_pct"],
+        "base_market_rate_pct": float(base_market_rate_pct),
+        "scenario_market_rate_pct": float(scenario_market_rate_pct),
+        "market_rate_gap_bp": float(market_rate_gap_bp),
+        "effective_rate_shock_bp": float(effective_rate_shock_bp),
         "rent_delta_krw_bn": rent_delta,
         "interest_delta_krw_bn": total_interest_delta,
         "interest_expense_impact_krw_bn": total_interest_delta,
@@ -239,6 +250,7 @@ def run_peer_scenarios(
     rent_change_pct: float = 0.0,
     asset_value_change_pct: float = 0.0,
     tax_impact_pct: float = 0.0,
+    base_market_rate_pct: float | None = None,
 ) -> pd.DataFrame:
     rows = []
     for _, reit in reits.iterrows():
@@ -252,6 +264,7 @@ def run_peer_scenarios(
             rent_change_pct=rent_change_pct,
             asset_value_change_pct=asset_value_change_pct,
             tax_impact_pct=tax_impact_pct,
+            base_market_rate_pct=base_market_rate_pct,
         )
         rows.append(scenario)
     return pd.DataFrame(rows)

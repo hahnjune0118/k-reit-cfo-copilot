@@ -1,5 +1,20 @@
 # CHANGELOG
 
+## v08 - External API Data Layer
+
+- VERSION.md의 current version을 v08로 업데이트했습니다.
+- Streamlit sidebar version display가 v08을 표시하도록 fallback 값을 업데이트했습니다.
+- `modules/api_clients/` 폴더를 추가했습니다.
+- OpenDART API client를 추가했습니다: `fetch_corp_code_zip`, `load_corp_codes`, `find_corp_by_name`, `fetch_disclosure_list`.
+- ECOS API client를 추가했습니다: `fetch_ecos_stat`, `fetch_interest_rate_series`.
+- API key는 Streamlit secrets를 먼저 확인하고, 없으면 `.env`에서 읽도록 `config.py`를 추가했습니다.
+- API key가 없거나 API 호출이 실패해도 sample/mock data로 fallback하도록 설계했습니다.
+- `data_loader.py`에 `load_reit_master_data`, `load_market_rate_data`, `load_disclosure_data`를 추가했습니다.
+- Scenario Engine이 ECOS 또는 sample market rate를 base interest rate assumption으로 사용하도록 업데이트했습니다.
+- Data Quality & AI Readiness page에 External Data Connection section을 추가했습니다.
+- README.md에 “v08 External API Data Layer” section을 추가하고 OpenDART, ECOS, KRX roadmap, API key management, fallback design을 설명했습니다.
+- OpenAI 또는 외부 LLM API는 추가하지 않았습니다.
+
 ## v07 - Portfolio Submission Polish for Samil PwC AX Node
 
 - VERSION.md의 current version을 v07로 업데이트했습니다.

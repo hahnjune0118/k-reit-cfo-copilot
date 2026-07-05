@@ -1,18 +1,18 @@
 # ROADMAP
 
-## v08 후보
-
-- 실제 DART / ECOS / KRX API 연동 설계 및 sample connector 추가
-- 시장금리, REIT 공시, 거래소 데이터 기반 refinancing assumption 자동 업데이트
-- mock data와 real data를 구분하는 data source governance 추가
-
 ## v09 후보
+
+- OpenDART coverage 확대: 주요 공시 유형 분류, 공시 원문 링크, disclosure flag 자동 후보 생성
+- ECOS coverage 확대: 기준금리, 국고채, 회사채 spread 등 market rate assumption library 구성
+- KRX 상장 REIT 가격, 거래량, market cap data 연동
+
+## v10 후보
 
 - Figma prototype 기반 UX 고도화
 - Power BI dashboard 또는 executive reporting layer 연동
 - Power Automate workflow 기반 memo review, approval, owner tracking 연결
 
-## v10 후보
+## v11 후보
 
 - OpenAI API-based memo generation
 - retrieval-augmented Investor Q&A
@@ -20,5 +20,5 @@
 
 ## 보류 항목
 
-- 현재 MVP는 mock/sample data 기반입니다.
-- 외부 API, Figma, Power BI, Power Automate, OpenAI API 연동은 v07 범위에 포함하지 않았습니다.
+- v08은 external API data layer의 첫 단계이며, 모든 REIT metric 자동화를 의미하지 않습니다.
+- OpenAI API, Figma, Power BI, Power Automate 연동은 v08 범위에 포함하지 않았습니다.

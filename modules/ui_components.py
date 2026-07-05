@@ -11,13 +11,13 @@ VERSION_FILE = BASE_DIR / "VERSION.md"
 
 def get_app_version() -> str:
     if not VERSION_FILE.exists():
-        return "v07"
+        return "v08"
 
     for line in VERSION_FILE.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if stripped.startswith("Current version:"):
             return stripped.split(":", 1)[1].strip()
-    return "v07"
+    return "v08"
 
 
 APP_VERSION = get_app_version()
@@ -27,6 +27,7 @@ def setup_page(page_title: str, subtitle: str | None = None) -> None:
     st.set_page_config(page_title=page_title, page_icon="KR", layout="wide")
     inject_global_css()
     render_sidebar_version()
+    render_sidebar_api_status()
     st.title(page_title)
     if subtitle:
         st.caption(subtitle)
@@ -35,6 +36,23 @@ def setup_page(page_title: str, subtitle: str | None = None) -> None:
 def render_sidebar_version() -> None:
     st.sidebar.markdown("---")
     st.sidebar.caption(f"현재 버전: {APP_VERSION}")
+
+
+def render_sidebar_api_status() -> None:
+    try:
+        from modules.api_clients.config import has_dart_api_key, has_ecos_api_key
+    except Exception:
+        return
+
+    dart_status = "Key configured" if has_dart_api_key() else "Sample fallback"
+    ecos_status = "Key configured" if has_ecos_api_key() else "Sample fallback"
+    fallback_status = "예" if not (has_dart_api_key() and has_ecos_api_key()) else "API 시도"
+
+    st.sidebar.markdown("### External API")
+    st.sidebar.caption(f"OpenDART 연결 상태: {dart_status}")
+    st.sidebar.caption(f"ECOS 연결 상태: {ecos_status}")
+    st.sidebar.caption(f"Sample data fallback 여부: {fallback_status}")
+    st.sidebar.caption("API key는 UI에 표시하지 않습니다.")
 
 
 def inject_global_css() -> None:

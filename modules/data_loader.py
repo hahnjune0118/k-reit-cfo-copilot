@@ -1,7 +1,12 @@
 from pathlib import Path
+from datetime import date, timedelta
 
 import pandas as pd
 import streamlit as st
+
+from modules.api_clients.config import has_dart_api_key
+from modules.api_clients.dart_client import fetch_disclosure_list, find_corp_by_name
+from modules.api_clients.ecos_client import fetch_interest_rate_series, sample_interest_rate_series
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -42,6 +47,115 @@ def load_all_data() -> dict[str, pd.DataFrame]:
         "flags": load_disclosure_flags(),
         "readiness": load_readiness(),
     }
+
+
+def _attach_source_attrs(
+    frame: pd.DataFrame,
+    source: str,
+    api_connected: bool,
+    is_fallback: bool,
+    status_message: str,
+) -> pd.DataFrame:
+    frame.attrs["source"] = source
+    frame.attrs["api_connected"] = api_connected
+    frame.attrs["is_fallback"] = is_fallback
+    frame.attrs["status_message"] = status_message
+    return frame
+
+
+def load_reit_master_data(use_api: bool = True) -> pd.DataFrame:
+    master = load_reits().copy()
+    if not use_api or not has_dart_api_key():
+        return _attach_source_attrs(
+            master,
+            "sample",
+            api_connected=False,
+            is_fallback=True,
+            status_message="OpenDART API key missing; using sample REIT master data.",
+        )
+
+    matched_rows = []
+    for _, reit in master.iterrows():
+        matches = find_corp_by_name(str(reit["reit_name"]))
+        if not matches.empty:
+            first = matches.iloc[0]
+            matched_rows.append(
+                {
+                    "reit_id": reit["reit_id"],
+                    "dart_corp_code": first.get("corp_code", ""),
+                    "dart_corp_name": first.get("corp_name", ""),
+                    "dart_stock_code": first.get("stock_code", ""),
+                }
+            )
+
+    if not matched_rows:
+        return _attach_source_attrs(
+            master,
+            "sample",
+            api_connected=False,
+            is_fallback=True,
+            status_message="OpenDART company mapping unavailable; using sample REIT master data.",
+        )
+
+    mapped = master.merge(pd.DataFrame(matched_rows), on="reit_id", how="left")
+    return _attach_source_attrs(
+        mapped,
+        "sample + OpenDART mapping",
+        api_connected=True,
+        is_fallback=False,
+        status_message="Sample REIT master data enriched with OpenDART company mapping where available.",
+    )
+
+
+def load_market_rate_data(use_api: bool = True) -> pd.DataFrame:
+    if not use_api:
+        return sample_interest_rate_series("API disabled; using sample market rate data.")
+    return fetch_interest_rate_series()
+
+
+def load_disclosure_data(use_api: bool = True) -> pd.DataFrame:
+    sample_flags = load_disclosure_flags().copy()
+    if not use_api or not has_dart_api_key():
+        return _attach_source_attrs(
+            sample_flags,
+            "sample",
+            api_connected=False,
+            is_fallback=True,
+            status_message="OpenDART API key missing; using sample disclosure flags.",
+        )
+
+    end = date.today()
+    start = end - timedelta(days=365)
+    disclosures = []
+    for _, reit in load_reits().iterrows():
+        matches = find_corp_by_name(str(reit["reit_name"]))
+        if matches.empty:
+            continue
+        corp_code = str(matches.iloc[0].get("corp_code", ""))
+        fetched = fetch_disclosure_list(corp_code, start.strftime("%Y%m%d"), end.strftime("%Y%m%d"))
+        if fetched.empty:
+            continue
+        fetched = fetched.copy()
+        fetched["reit_id"] = reit["reit_id"]
+        disclosures.append(fetched)
+
+    if not disclosures:
+        return _attach_source_attrs(
+            sample_flags,
+            "sample",
+            api_connected=False,
+            is_fallback=True,
+            status_message="OpenDART disclosure data unavailable; using sample disclosure flags.",
+        )
+
+    result = pd.concat(disclosures, ignore_index=True)
+    return _attach_source_attrs(
+        result,
+        "OpenDART API",
+        api_connected=True,
+        is_fallback=False,
+        status_message="OpenDART disclosure list loaded for matched REIT companies.",
+    )
 
 
 def reit_options(reits: pd.DataFrame) -> list[str]:
