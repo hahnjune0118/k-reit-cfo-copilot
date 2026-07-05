@@ -4,28 +4,28 @@ import pandas as pd
 
 
 FOCUS_LABELS = {
-    "dividend": "배당 지속 가능성",
-    "refinancing": "refinancing risk",
+    "dividend": "배당 안정성",
+    "refinancing": "리파이낸싱 리스크",
     "asset_value": "자산가치 하락",
-    "investor": "Investor communication",
+    "tenant": "임차인 리스크",
+    "disclosure": "공시 품질",
 }
 
-DIVIDEND_STATUS_KO = {
-    "Resilient": "Resilient",
-    "Defensible": "Defensible",
-    "Watch": "Watch",
-    "Pressure": "Pressure",
-}
-
-RISK_TIER_KO = {
-    "High": "High",
-    "Medium": "Medium",
-    "Low": "Low",
+FOCUS_TO_RISK_CATEGORY = {
+    "dividend": "Dividend Sustainability",
+    "refinancing": "Refinancing Risk",
+    "asset_value": "Asset Risk",
+    "tenant": "Asset Risk",
+    "disclosure": "Disclosure Quality",
 }
 
 
 def _fmt(value: float, digits: int = 1) -> str:
     return f"{value:,.{digits}f}"
+
+
+def _krw(value: float, digits: int = 1) -> str:
+    return f"KRW {_fmt(value, digits)}bn"
 
 
 def _top_asset(asset_scores: pd.DataFrame) -> pd.Series | None:
@@ -43,73 +43,130 @@ def _top_flag(flags: pd.DataFrame) -> pd.Series | None:
     return ordered.sort_values(["_severity_order", "flag_id"], ascending=False).iloc[0]
 
 
+def _risk_row(category_scores: pd.DataFrame | None, focus: str) -> pd.Series | None:
+    if category_scores is None or category_scores.empty:
+        return None
+    category = FOCUS_TO_RISK_CATEGORY.get(focus)
+    match = category_scores[category_scores["category"] == category]
+    if match.empty:
+        return None
+    return match.iloc[0]
+
+
+def _risk_summary(category_scores: pd.DataFrame | None, focus: str) -> str:
+    row = _risk_row(category_scores, focus)
+    if row is None:
+        return "정량 Risk Score는 별도 Dashboard에서 확인 가능합니다."
+    return f"{row['category']}는 {row['label']} 구간이며 Risk Score는 {_fmt(float(row['score']), 0)}/100입니다."
+
+
+def _focus_context(focus: str, scenario: dict, asset_scores: pd.DataFrame, flags: pd.DataFrame) -> dict[str, str]:
+    top_asset = _top_asset(asset_scores)
+    top_flag = _top_flag(flags)
+    asset_name = top_asset["asset_name"] if top_asset is not None else "portfolio"
+    flag_area = top_flag["area"] if top_flag is not None else "공시 controls"
+
+    contexts = {
+        "dividend": {
+            "summary": (
+                f"배당 안정성 관점에서 dividend coverage는 {_fmt(scenario['dividend_coverage'], 2)}x, "
+                f"dividend buffer는 {_krw(scenario['dividend_buffer_krw_bn'])}입니다."
+            ),
+            "risk": "AFFO estimate가 dividend payout을 충분히 방어하지 못하면 배당 guidance 신뢰도가 약화될 수 있습니다.",
+            "question": "현재 금리와 임대료 scenario에서도 배당 안정성을 유지할 수 있습니까?",
+            "caution": "확정 배당 guidance처럼 표현하지 말고, scenario assumption과 buffer 민감도를 함께 설명해야 합니다.",
+        },
+        "refinancing": {
+            "summary": (
+                f"near-term maturity는 {_krw(scenario['near_term_debt_krw_bn'], 0)}이며 "
+                f"refinancing Risk Score는 {_fmt(scenario['refinancing_risk_score'], 0)}/100입니다."
+            ),
+            "risk": "금리 충격은 floating-rate debt와 near-term refinancing cost를 동시에 압박합니다.",
+            "question": "향후 만기 도래 차입금의 refinancing plan은 충분히 확보되어 있습니까?",
+            "caution": "lender 협의 상태와 market-rate timing을 구분해 설명해야 합니다.",
+        },
+        "asset_value": {
+            "summary": (
+                f"asset value shock 반영 후 stressed LTV는 {_fmt(scenario['stressed_ltv_pct'])}%이며 "
+                f"base 대비 {_fmt(scenario['ltv_change_pctp'])}p 변동합니다."
+            ),
+            "risk": "자산가치 하락은 LTV, covenant headroom, capital allocation narrative에 영향을 줍니다.",
+            "question": "자산가치 하락이 LTV와 배당가능성에 미치는 영향은 어느 정도입니까?",
+            "caution": "valuation decline을 단일 숫자로 단정하지 말고 LTV range와 covenant headroom 중심으로 설명해야 합니다.",
+        },
+        "tenant": {
+            "summary": f"임차인 리스크 관점에서 우선 설명할 asset은 {asset_name}입니다.",
+            "risk": "tenant concentration, WALE, occupancy 변화는 NOI 안정성과 investor confidence에 직접 연결됩니다.",
+            "question": "주요 tenant renewal과 occupancy 안정성에 대한 management view는 무엇입니까?",
+            "caution": "개별 tenant 정보는 disclosure policy와 confidentiality를 고려해 portfolio-level language로 조정해야 합니다.",
+        },
+        "disclosure": {
+            "summary": f"공시 품질 관점에서 우선 점검할 disclosure topic은 {flag_area}입니다.",
+            "risk": "disclosure flag가 정리되지 않으면 Investor Q&A와 management narrative의 일관성이 약화됩니다.",
+            "question": "투자자에게 반복적으로 설명해야 할 disclosure topic과 개선 일정은 무엇입니까?",
+            "caution": "공시 개선 계획은 책임자, source data, target date가 있는 실행 항목으로 표현해야 합니다.",
+        },
+    }
+    return contexts.get(focus, contexts["dividend"])
+
+
 def generate_cfo_memo(
     reit_name: str,
     focus: str,
     scenario: dict,
     asset_scores: pd.DataFrame,
     flags: pd.DataFrame,
+    category_scores: pd.DataFrame | None = None,
+    overall: dict | None = None,
 ) -> str:
+    context = _focus_context(focus, scenario, asset_scores, flags)
     top_asset = _top_asset(asset_scores)
     top_flag = _top_flag(flags)
+    risk_summary = _risk_summary(category_scores, focus)
+    overall_sentence = ""
+    if overall:
+        overall_sentence = f" Overall Risk Score는 {_fmt(float(overall['overall_score']), 0)}/100이며 label은 {overall['overall_label']}입니다."
 
-    focus_sentence = {
-        "dividend": (
-            f"현재 scenario 기준 dividend coverage는 **{_fmt(scenario['dividend_coverage'], 2)}x**이며 "
-            f"배당 profile은 **{DIVIDEND_STATUS_KO.get(scenario['dividend_status'], scenario['dividend_status'])}** 구간으로 평가됩니다."
-        ),
-        "refinancing": (
-            f"향후 24개월 내 만기 도래 debt는 전체 debt의 **{_fmt(scenario['near_term_debt_pct'])}%**이며 "
-            f"refinancing Risk Score는 **{_fmt(scenario['refinancing_risk_score'], 0)}/100**입니다."
-        ),
-        "asset_value": (
-            f"자산가치 shock 반영 후 stressed LTV는 **{_fmt(scenario['stressed_ltv_pct'])}%**입니다. "
-            "lender threshold와 investor sensitivity를 함께 점검해야 합니다."
-        ),
-        "investor": (
-            "management narrative는 금리와 valuation pressure를 설명하는 데서 끝나지 않고 "
-            "debt action, asset action, tax leakage, dividend policy를 하나의 bridge로 연결해야 합니다."
-        ),
-    }.get(
-        focus,
-        "이번 scenario는 cash flow, debt, disclosure가 동시에 압박받는 복합 리스크를 보여줍니다.",
-    )
-
-    asset_sentence = "sample data 기준으로 즉시 강조해야 할 자산 concentration issue는 제한적입니다."
+    asset_sentence = "자산별 특이사항은 제한적입니다."
     if top_asset is not None:
         asset_sentence = (
-            f"가장 높은 asset Risk Score는 **{top_asset['asset_name']}**입니다 "
-            f"({RISK_TIER_KO.get(top_asset['risk_tier'], top_asset['risk_tier'])} risk, "
-            f"{_fmt(top_asset['asset_risk_score'], 0)}/100). "
-            "주요 driver는 tenant concentration, WALE, occupancy, capex 지표입니다."
+            f"상위 asset risk는 {top_asset['asset_name']}이며 Asset Risk Score는 "
+            f"{_fmt(float(top_asset['asset_risk_score']), 0)}/100입니다."
         )
 
-    flag_sentence = "현재 sample data에는 open disclosure flag가 표시되지 않습니다."
+    flag_sentence = "open disclosure flag는 제한적입니다."
     if top_flag is not None:
-        flag_sentence = (
-            f"우선 점검할 disclosure flag는 **{top_flag['area']}**입니다: {top_flag['flag']} "
-            f"권고 action: {top_flag['recommended_action']}."
-        )
+        flag_sentence = f"주요 disclosure flag는 {top_flag['area']}입니다. {top_flag['recommended_action']}"
 
-    return f"""
-### CFO Briefing Memo - {reit_name}
+    return f"""# CFO Briefing Memo - {reit_name}
 
-**Scenario:** {scenario['scenario_label']}
+## 핵심 요약
+{context['summary']} {risk_summary}{overall_sentence}
 
-**Executive view:** {focus_sentence}
+## 주요 리스크
+- {context['risk']}
+- {asset_sentence}
+- {flag_sentence}
 
-**Cash-flow bridge:** tax-adjusted cash flow는 **KRW {_fmt(scenario['tax_adjusted_cash_flow_krw_bn'])}bn**으로 추정됩니다. rent impact **KRW {_fmt(scenario['rent_delta_krw_bn'])}bn**, interest/refinancing impact **KRW {_fmt(scenario['interest_delta_krw_bn'])}bn**, tax impact **KRW {_fmt(scenario['tax_delta_krw_bn'])}bn**을 반영한 결과입니다.
+## 배당가능성 영향
+- AFFO estimate는 {_krw(scenario['affo_estimate_krw_bn'])}입니다.
+- dividend coverage는 {_fmt(scenario['dividend_coverage'], 2)}x입니다.
+- dividend buffer는 {_krw(scenario['dividend_buffer_krw_bn'])}이며, buffer가 축소될 경우 배당 policy와 cash reserve 사용 가능성을 함께 검토해야 합니다.
 
-**Risk driver:** {asset_sentence}
+## 리파이낸싱 영향
+- interest expense impact는 {_krw(scenario['interest_expense_impact_krw_bn'])}입니다.
+- near-term maturity는 {_krw(scenario['near_term_debt_krw_bn'], 0)}이며 전체 debt의 {_fmt(scenario['near_term_debt_pct'])}%입니다.
+- refinancing risk level은 {scenario['refinancing_status']}이며 Risk Score는 {_fmt(scenario['refinancing_risk_score'], 0)}/100입니다.
 
-**Disclosure readiness:** {flag_sentence}
+## 세금효과 고려사항
+- tax impact는 {_krw(scenario['tax_delta_krw_bn'])}로 반영했습니다.
+- v05 MVP에서는 tax drag를 단순 assumption으로 반영하므로, 실제 board memo에서는 taxable income, withholding, property tax, transaction tax를 별도 검토해야 합니다.
 
-**Recommended CFO actions**
-
-1. 24개월 내 maturity에 대한 refinancing timetable과 lender status를 확정합니다.
-2. 배당 guidance는 headline NOI가 아니라 tax-adjusted cash-flow coverage 기준으로 설명합니다.
-3. 금리, rent, valuation, tax drag, management action을 연결한 investor bridge를 준비합니다.
-4. open disclosure flag를 structured data field로 전환해 AI-generated reporting의 governance 기반을 만듭니다.
+## CFO 권고 액션
+1. focus topic인 {FOCUS_LABELS.get(focus, focus)}에 대해 board-level decision question을 먼저 확정합니다.
+2. FFO/AFFO bridge와 dividend buffer sensitivity를 CFO Dashboard와 일치시킵니다.
+3. refinancing timetable, lender status, covenant headroom을 최신화합니다.
+4. Investor Q&A에 사용할 approved metric과 disclosure wording을 IR팀과 사전 합의합니다.
 """
 
 
@@ -119,27 +176,41 @@ def generate_investor_qa(
     scenario: dict,
     asset_scores: pd.DataFrame,
     flags: pd.DataFrame,
+    category_scores: pd.DataFrame | None = None,
+    overall: dict | None = None,
 ) -> str:
-    top_asset = _top_asset(asset_scores)
-    asset_name = top_asset["asset_name"] if top_asset is not None else "portfolio"
-    top_flag = _top_flag(flags)
-    disclosure_topic = top_flag["area"] if top_flag is not None else "disclosure controls"
+    context = _focus_context(focus, scenario, asset_scores, flags)
+    risk_summary = _risk_summary(category_scores, focus)
 
-    return f"""
-### Investor Q&A Draft - {reit_name}
+    return f"""# Investor Q&A Draft - {reit_name}
 
-**Q1. 이번 scenario에서 배당은 얼마나 민감합니까?**  
-현재 assumption 기준 dividend coverage는 **{_fmt(scenario['dividend_coverage'], 2)}x**입니다. 단순 임대수익이 아니라 rent movement, interest cost, refinancing exposure, tax impact를 반영한 tax-adjusted cash flow 기준으로 설명하는 것이 적절합니다.
+## 예상 질문
+{context['question']}
 
-**Q2. 투자자에게 전달해야 할 refinancing message는 무엇입니까?**  
-near-term maturity는 **KRW {_fmt(scenario['near_term_debt_krw_bn'])}bn**이며 전체 debt의 **{_fmt(scenario['near_term_debt_pct'])}%**입니다. 이미 협의 중인 debt와 market-rate timing에 노출된 debt를 분리해 설명해야 합니다.
+## 답변 초안
+현재 scenario 기준으로 {context['summary']} {risk_summary}
 
-**Q3. 어떤 asset risk를 먼저 설명해야 합니까?**  
-우선 설명할 asset은 **{asset_name}**입니다. tenant concentration, occupancy, WALE, capex needs를 먼저 설명한 뒤 해당 운영 지표가 cash-flow resilience와 어떻게 연결되는지 제시합니다.
+management는 단순 NOI 변화만 보지 않고 FFO estimate, AFFO estimate, dividend buffer, LTV, refinancing Risk Score를 함께 검토하고 있습니다. 선택한 scenario에서 AFFO estimate는 {_krw(scenario['affo_estimate_krw_bn'])}, dividend buffer는 {_krw(scenario['dividend_buffer_krw_bn'])}, stressed LTV는 {_fmt(scenario['stressed_ltv_pct'])}%입니다.
 
-**Q4. 자산가치 하락 압력은 어떻게 대응하고 있습니까?**  
-선택한 asset-value shock 기준 stressed LTV는 **{_fmt(scenario['stressed_ltv_pct'])}%**입니다. covenant headroom, refinancing alternative, capital allocation 변화 여부를 함께 설명하는 답변이 필요합니다.
+리파이낸싱 측면에서는 near-term maturity {_krw(scenario['near_term_debt_krw_bn'], 0)}와 interest expense impact {_krw(scenario['interest_expense_impact_krw_bn'])}를 우선 관리하고 있으며, lender 협의 상황과 시장금리 변화를 반영해 funding plan을 업데이트할 예정입니다.
 
-**Q5. 투자자 신뢰를 높이기 위해 가장 먼저 개선할 disclosure topic은 무엇입니까?**  
-현재 우선순위 topic은 **{disclosure_topic}**입니다. 반복되는 Investor Q&A가 structured data, approved definition, repeatable scenario output에 기반한다는 점을 보여주는 것이 중요합니다.
+## 커뮤니케이션 유의사항
+- {context['caution']}
+- scenario output은 forecast가 아니라 sensitivity analysis로 표현해야 합니다.
+- Investor Q&A에서는 숫자, assumption, management action을 한 문단 안에서 연결해 설명해야 합니다.
+- 필요한 경우 공시 전 확인이 필요한 tenant, lender, tax detail은 portfolio-level 표현으로 조정합니다.
 """
+
+
+def markdown_to_plain_text(markdown: str) -> str:
+    replacements = {
+        "# ": "",
+        "## ": "",
+        "### ": "",
+        "**": "",
+        "- ": "• ",
+    }
+    text = markdown
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    return text

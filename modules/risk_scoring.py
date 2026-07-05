@@ -14,6 +14,14 @@ RISK_WEIGHTS = {
     "Disclosure Quality": 0.15,
     "AI Readiness": 0.10,
 }
+READINESS_WEIGHTS = {
+    "Data Availability": 0.20,
+    "Data Consistency": 0.20,
+    "KPI Standardization": 0.15,
+    "Scenario Capability": 0.20,
+    "Tax-Finance Integration": 0.15,
+    "AI Use Case Readiness": 0.10,
+}
 
 
 def score_assets(assets: pd.DataFrame) -> pd.DataFrame:
@@ -105,6 +113,117 @@ def readiness_score(readiness: pd.DataFrame, flags: pd.DataFrame | None = None) 
             5,
         )
     return scores.sort_values("ai_readiness_score", ascending=False)
+
+
+def readiness_interpretation(score: float) -> str:
+    if score >= 3.8:
+        return "Strong"
+    if score >= 3.0:
+        return "Moderate"
+    return "Needs Improvement"
+
+
+def weighted_readiness_score(readiness: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, float | str]]:
+    scored = readiness.copy()
+    scored["weight"] = scored["dimension"].map(READINESS_WEIGHTS).fillna(0.0)
+    weight_sum = scored["weight"].sum()
+    if weight_sum == 0:
+        scored["weight"] = 1 / max(len(scored), 1)
+    else:
+        scored["weight"] = scored["weight"] / weight_sum
+    scored["weighted_score"] = scored["score"] * scored["weight"]
+    weighted_score = float(scored["weighted_score"].sum())
+    diagnostic = {
+        "weighted_score": weighted_score,
+        "weighted_score_pct": weighted_score / 5 * 100,
+        "interpretation": readiness_interpretation(weighted_score),
+    }
+    return scored.sort_values("score"), diagnostic
+
+
+def data_quality_flags(
+    reit: pd.Series,
+    assets: pd.DataFrame,
+    debt: pd.DataFrame,
+    flags: pd.DataFrame,
+    readiness: pd.DataFrame,
+) -> pd.DataFrame:
+    data_availability = readiness.loc[readiness["dimension"] == "Data Availability", "score"]
+    data_consistency = readiness.loc[readiness["dimension"] == "Data Consistency", "score"]
+    scenario_capability = readiness.loc[readiness["dimension"] == "Scenario Capability", "score"]
+
+    missing_score = float(data_availability.iloc[0]) if not data_availability.empty else 0.0
+    consistency_score = float(data_consistency.iloc[0]) if not data_consistency.empty else 0.0
+    scenario_score = float(scenario_capability.iloc[0]) if not scenario_capability.empty else 0.0
+    high_flags = int((flags["severity"] == "High").sum()) if not flags.empty else 0
+    open_flags = int(len(flags))
+
+    asset_yield = float(assets["noi_krw_bn"].sum() / max(assets["asset_value_krw_bn"].sum(), 1) * 100)
+    debt_cost_gap = float(abs(debt["coupon_pct"].mean() - reit["avg_debt_cost_pct"])) if not debt.empty else 0.0
+
+    rows = [
+        {
+            "flag_type": "Missing data",
+            "status": "High" if missing_score < 3.0 else "Watch" if missing_score < 3.8 else "Low",
+            "evidence": f"Data Availability score {missing_score:.1f}/5",
+            "impact": "필수 asset, debt, tax field가 누락되면 AI Memo와 Scenario Engine의 신뢰도가 낮아집니다.",
+            "action": "필수 data dictionary와 source owner를 지정합니다.",
+        },
+        {
+            "flag_type": "Inconsistent values",
+            "status": "High" if consistency_score < 3.0 or debt_cost_gap > 0.4 else "Watch" if consistency_score < 3.8 else "Low",
+            "evidence": f"Data Consistency score {consistency_score:.1f}/5, debt cost gap {debt_cost_gap:.1f}%p",
+            "impact": "KPI definition이 다르면 CFO Dashboard와 IR narrative가 서로 다른 숫자를 말할 수 있습니다.",
+            "action": "FFO, AFFO, LTV, debt cost, occupancy definition을 표준화합니다.",
+        },
+        {
+            "flag_type": "Unusual movement",
+            "status": "High" if asset_yield < 3.5 or asset_yield > 6.0 else "Watch" if scenario_score < 3.2 else "Low",
+            "evidence": f"portfolio NOI yield {asset_yield:.1f}%, Scenario Capability score {scenario_score:.1f}/5",
+            "impact": "비정상적 movement를 설명하지 못하면 investor Q&A와 valuation narrative가 약해집니다.",
+            "action": "NOI, rent, valuation movement에 대한 threshold 기반 review rule을 설정합니다.",
+        },
+        {
+            "flag_type": "Manual review required",
+            "status": "High" if high_flags > 0 else "Watch" if open_flags > 0 else "Low",
+            "evidence": f"open disclosure flags {open_flags}, high-severity flags {high_flags}",
+            "impact": "manual review 항목이 남아 있으면 AI-generated output의 approval risk가 커집니다.",
+            "action": "High severity flag부터 owner, target date, approval status를 부여합니다.",
+        },
+    ]
+    return pd.DataFrame(rows)
+
+
+def readiness_roadmap(readiness: pd.DataFrame, quality_flags: pd.DataFrame) -> pd.DataFrame:
+    weakest = readiness.sort_values("score").head(2)["dimension"].tolist()
+    high_flags = quality_flags[quality_flags["status"] == "High"]["flag_type"].tolist()
+    watch_flags = quality_flags[quality_flags["status"] == "Watch"]["flag_type"].tolist()
+
+    short_focus = ", ".join(high_flags or watch_flags or ["source data validation"])
+    weakest_focus = ", ".join(weakest or ["KPI Standardization"])
+
+    return pd.DataFrame(
+        [
+            {
+                "horizon": "단기 개선 과제",
+                "priority": "0-3개월",
+                "initiative": f"{short_focus} 항목을 우선 정리하고 필수 data owner를 지정",
+                "expected_impact": "Data Quality flag를 줄이고 Dashboard 숫자 신뢰도를 확보",
+            },
+            {
+                "horizon": "중기 개선 과제",
+                "priority": "3-6개월",
+                "initiative": f"{weakest_focus} 영역의 KPI dictionary와 scenario workflow 표준화",
+                "expected_impact": "CFO, AMC, IR팀이 같은 metric으로 의사결정 가능",
+            },
+            {
+                "horizon": "장기 AX 전환 과제",
+                "priority": "6-12개월",
+                "initiative": "AI Memo, Investor Q&A, disclosure workflow에 approval governance와 audit trail 구축",
+                "expected_impact": "AI Readiness를 실제 AX operating model로 확장",
+            },
+        ]
+    )
 
 
 def attention_label(score: float) -> str:

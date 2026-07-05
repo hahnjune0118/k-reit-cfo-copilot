@@ -1,65 +1,147 @@
-import numpy as np
 import plotly.express as px
 import streamlit as st
 
 from modules.data_loader import load_all_data, reit_id_from_name, reit_options
-from modules.risk_scoring import readiness_score
-from modules.ui_components import hero, setup_page
+from modules.risk_scoring import (
+    data_quality_flags,
+    readiness_roadmap,
+    readiness_score,
+    weighted_readiness_score,
+)
+from modules.ui_components import hero, setup_page, signal_card
 
 
 setup_page(
     "6. 데이터 품질 및 AI Readiness",
-    "AX transformation을 위한 Data Quality와 AI Readiness 진단",
+    "AX consulting diagnostic: AI를 적용하기 전에 데이터 기반과 프로세스 성숙도를 진단합니다.",
 )
 
 data = load_all_data()
 reits = data["reits"]
+assets = data["assets"]
+debt = data["debt"]
 readiness = data["readiness"]
 flags = data["flags"]
 
 selected_name = st.sidebar.selectbox("REIT 선택", reit_options(reits), index=0)
 reit_id = reit_id_from_name(reits, selected_name)
+reit = reits[reits["reit_id"] == reit_id].iloc[0]
+reit_assets = assets[assets["reit_id"] == reit_id].copy()
+reit_debt = debt[debt["reit_id"] == reit_id].copy()
 reit_readiness = readiness[readiness["reit_id"] == reit_id].copy()
 reit_flags = flags[flags["reit_id"] == reit_id].copy()
-all_scores = readiness_score(readiness, flags).merge(reits[["reit_id", "reit_name"]], on="reit_id", how="left")
-selected_score = readiness_score(reit_readiness, reit_flags)["ai_readiness_score"].iloc[0]
+
+weighted_readiness, readiness_diagnostic = weighted_readiness_score(reit_readiness)
+quality_flags = data_quality_flags(reit, reit_assets, reit_debt, reit_flags, reit_readiness)
+roadmap = readiness_roadmap(reit_readiness, quality_flags)
+peer_scores = readiness_score(readiness, flags).merge(reits[["reit_id", "reit_name"]], on="reit_id", how="left")
+
+interpretation = readiness_diagnostic["interpretation"]
+weighted_score = float(readiness_diagnostic["weighted_score"])
+weighted_score_pct = float(readiness_diagnostic["weighted_score_pct"])
+high_or_watch_flags = int(quality_flags["status"].isin(["High", "Watch"]).sum())
+high_flags = int((quality_flags["status"] == "High").sum())
+lowest_dimension = weighted_readiness.sort_values("score").iloc[0]
+
+interpretation_text = {
+    "Strong": "AI Memo, Investor Q&A, Scenario Engine을 운영 프로세스에 연결할 수 있는 기반이 비교적 안정적입니다.",
+    "Moderate": "핵심 데이터는 존재하지만 KPI 정의, 검증 흐름, tax-finance 연결을 보완해야 AX 확장이 가능합니다.",
+    "Needs Improvement": "AI 적용보다 먼저 source-of-truth, Data Quality rule, 승인 workflow를 정비해야 합니다.",
+}
+
+status_palette = {
+    "High": "#c94f4f",
+    "Watch": "#b76e00",
+    "Low": "#007c89",
+}
 
 hero(
-    "AI Readiness diagnostic",
-    f"{selected_name}: reporting data에서 AI-enabled decision workflow로",
-    "AI Readiness score는 structured data, KPI standardization, scenario logic, tax-finance integration, "
-    "governance 수준을 평가합니다.",
+    "Data Quality & AI Readiness",
+    f"{selected_name} AX 진단 모듈",
+    "AX consulting은 AI 기능을 붙이는 것에서 시작하지 않습니다. REIT CFO, AMC, IR팀이 신뢰할 수 있는 "
+    "데이터 기반과 KPI 표준화, Scenario Capability, Tax-Finance Integration을 갖추었는지 먼저 진단합니다.",
 )
 
-status = "Pilot ready" if selected_score >= 3.6 else "기반 정비 필요" if selected_score < 3.0 else "Targeted remediation"
+metric_cols = st.columns(4)
+metric_cols[0].metric("Weighted AI Readiness Score", f"{weighted_score:.1f}/5", interpretation)
+metric_cols[1].metric("AI Readiness Index", f"{weighted_score_pct:.0f}/100", "weighted scoring")
+metric_cols[2].metric("Data Quality Flags", f"{high_or_watch_flags}개", f"High {high_flags}개")
+metric_cols[3].metric("최우선 개선 Dimension", lowest_dimension["dimension"], f"{lowest_dimension['score']:.1f}/5")
 
-cols = st.columns(4)
-cols[0].metric("AI Readiness Score", f"{selected_score:.1f}/5", status)
-cols[1].metric("Open flags", f"{len(reit_flags)}건")
-cols[2].metric("High-severity flags", f"{int((reit_flags['severity'] == 'High').sum())}건")
-cols[3].metric("Readiness dimensions", f"{len(reit_readiness)}개")
+signal_cols = st.columns(3)
+with signal_cols[0]:
+    signal_card(
+        "진단 관점",
+        "Data foundation",
+        "AI 적용 가능성은 asset, debt, tax, disclosure 데이터가 하나의 의사결정 흐름으로 연결되는지에서 출발합니다.",
+    )
+with signal_cols[1]:
+    signal_card(
+        "해석",
+        interpretation,
+        interpretation_text[interpretation],
+    )
+with signal_cols[2]:
+    signal_card(
+        "CFO 질문",
+        "Can we trust it?",
+        "Dashboard 숫자, management narrative, Investor Q&A가 같은 source-of-truth에서 나오는지 확인합니다.",
+    )
+
+st.subheader("Data Quality Flags")
+st.caption("Missing data, Inconsistent values, Unusual movement, Manual review required를 CFO 의사결정 리스크 관점으로 진단합니다.")
+
+flag_display = quality_flags.rename(
+    columns={
+        "flag_type": "Flag 유형",
+        "status": "상태",
+        "evidence": "진단 근거",
+        "impact": "CFO/IR 영향",
+        "action": "권고 액션",
+    }
+)
+
+st.dataframe(
+    flag_display,
+    width="stretch",
+    hide_index=True,
+    column_config={
+        "상태": st.column_config.TextColumn("상태", help="Low, Watch, High"),
+        "CFO/IR 영향": st.column_config.TextColumn("CFO/IR 영향", width="large"),
+        "권고 액션": st.column_config.TextColumn("권고 액션", width="large"),
+    },
+)
 
 left, right = st.columns([1.15, 1])
 
 with left:
-    st.subheader("Dimension Scorecard")
-    fig = px.bar(
-        reit_readiness.sort_values("score"),
+    st.subheader("AI Readiness Score by Dimension")
+    st.caption("각 dimension 점수와 가중치를 함께 반영해 Weighted AI Readiness Score를 계산합니다.")
+    chart_df = weighted_readiness.sort_values("score").copy()
+    chart_df["score_label"] = chart_df["score"].map(lambda value: f"{value:.1f}")
+    readiness_fig = px.bar(
+        chart_df,
         x="score",
         y="dimension",
         orientation="h",
+        text="score_label",
         color="score",
         color_continuous_scale=["#c94f4f", "#b76e00", "#007c89"],
         range_x=[0, 5],
         labels={"score": "Score", "dimension": ""},
     )
-    fig.update_layout(height=420, margin=dict(l=10, r=10, t=20, b=10), coloraxis_showscale=False)
-    st.plotly_chart(fig, width="stretch")
+    readiness_fig.update_traces(textposition="outside", cliponaxis=False)
+    readiness_fig.update_layout(
+        height=420,
+        margin=dict(l=10, r=60, t=20, b=10),
+        coloraxis_showscale=False,
+    )
+    st.plotly_chart(readiness_fig, width="stretch")
 
 with right:
     st.subheader("Peer AI Readiness")
     peer_fig = px.bar(
-        all_scores.sort_values("ai_readiness_score"),
+        peer_scores.sort_values("ai_readiness_score"),
         x="ai_readiness_score",
         y="reit_name",
         orientation="h",
@@ -71,39 +153,86 @@ with right:
     peer_fig.update_layout(height=420, margin=dict(l=10, r=10, t=20, b=10), coloraxis_showscale=False)
     st.plotly_chart(peer_fig, width="stretch")
 
-st.subheader("AI Readiness Roadmap")
-roadmap = reit_readiness.copy()
-roadmap["priority"] = np.select(
-    [roadmap["score"] < 3.0, roadmap["score"] < 3.6],
-    ["Immediate", "Near-term"],
-    default="Scale",
-)
+st.subheader("Weighted Scoring Logic")
+weighted_display = weighted_readiness.copy()
+weighted_display["weight_pct"] = weighted_display["weight"] * 100
+weighted_display["weighted_score"] = weighted_display["weighted_score"].round(2)
 st.dataframe(
-    roadmap[["dimension", "score", "priority", "interpretation", "next_step"]].rename(
+    weighted_display[
+        ["dimension", "score", "weight_pct", "weighted_score", "interpretation", "next_step"]
+    ].rename(
         columns={
-            "dimension": "진단 영역",
+            "dimension": "AI Readiness Dimension",
             "score": "Score",
-            "priority": "Priority",
-            "interpretation": "해석",
-            "next_step": "Next step",
+            "weight_pct": "Weight %",
+            "weighted_score": "Weighted Score",
+            "interpretation": "진단 해석",
+            "next_step": "Next Step",
         }
     ),
     width="stretch",
     hide_index=True,
+    column_config={
+        "Score": st.column_config.NumberColumn("Score", format="%.1f"),
+        "Weight %": st.column_config.NumberColumn("Weight %", format="%.0f%%"),
+        "Weighted Score": st.column_config.NumberColumn("Weighted Score", format="%.2f"),
+        "진단 해석": st.column_config.TextColumn("진단 해석", width="large"),
+        "Next Step": st.column_config.TextColumn("Next Step", width="large"),
+    },
 )
 
-if not reit_flags.empty:
-    st.subheader("Disclosure Flags Feeding AI Readiness")
-    st.dataframe(
-        reit_flags[["area", "severity", "status", "decision_risk", "recommended_action"]].rename(
-            columns={
-                "area": "공시 영역",
-                "severity": "Severity",
-                "status": "Status",
-                "decision_risk": "의사결정 리스크",
-                "recommended_action": "권고 Action",
-            }
-        ),
-        width="stretch",
-        hide_index=True,
-    )
+st.subheader("Interpretation")
+interpretation_rows = [
+    {
+        "구분": "Strong",
+        "기준": "3.8점 이상",
+        "의미": "AI 기반 memo, Investor Q&A, scenario workflow를 pilot에서 운영 단계로 확장할 수 있습니다.",
+    },
+    {
+        "구분": "Moderate",
+        "기준": "3.0점 이상 3.8점 미만",
+        "의미": "주요 데이터는 존재하지만 KPI 표준화와 검증 workflow 보완 후 AX 적용을 확대하는 것이 적절합니다.",
+    },
+    {
+        "구분": "Needs Improvement",
+        "기준": "3.0점 미만",
+        "의미": "AI 기능보다 Data Quality, source owner, approval governance 정비가 우선입니다.",
+    },
+]
+st.dataframe(interpretation_rows, width="stretch", hide_index=True)
+
+st.subheader("Improvement Roadmap")
+st.caption("진단 결과를 단기 데이터 정비, 중기 KPI/Scenario 표준화, 장기 AX 운영모델 전환 과제로 변환합니다.")
+st.dataframe(
+    roadmap.rename(
+        columns={
+            "horizon": "Roadmap 구간",
+            "priority": "기간",
+            "initiative": "개선 과제",
+            "expected_impact": "기대 효과",
+        }
+    ),
+    width="stretch",
+    hide_index=True,
+    column_config={
+        "개선 과제": st.column_config.TextColumn("개선 과제", width="large"),
+        "기대 효과": st.column_config.TextColumn("기대 효과", width="large"),
+    },
+)
+
+st.subheader("AX Consulting Takeaway")
+takeaway_color = status_palette["High" if high_flags else "Watch" if high_or_watch_flags else "Low"]
+st.markdown(
+    f"""
+    <div class="consulting-hero" style="border-left-color:{takeaway_color};">
+        <div class="eyebrow">CFO / AMC / IR action</div>
+        <div class="hero-title">AI 적용 전에 신뢰 가능한 decision data layer를 먼저 확정해야 합니다.</div>
+        <div class="hero-body">
+            {selected_name}의 현재 진단은 <strong>{interpretation}</strong>입니다. 우선순위는
+            <strong>{lowest_dimension["dimension"]}</strong> 보완과 High/Watch Data Quality Flag 정리입니다.
+            이 기반이 갖춰져야 Scenario Engine 결과가 CFO 보고 메모와 Investor Q&A로 일관되게 전환됩니다.
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
