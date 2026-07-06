@@ -4,10 +4,22 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from modules.data_loader import load_all_data, reit_id_from_name, reit_options
-from modules.real_mode_analytics import build_real_mode_analysis
+from modules.real_reit_analytics import build_real_reit_dashboard_model
 from modules.risk_scoring import attention_scores, debt_maturity_wall, score_assets, top_cfo_alerts
 from modules.scenario_engine import run_scenario
-from modules.ui_components import format_krw, format_krw_bn, get_real_mode_user_inputs, hero, is_real_api_mode, setup_page
+from modules.source_confidence import metric_confidence, metric_source_type, metric_value
+from modules.ui_components import (
+    cfo_alert_card,
+    confidence_badge,
+    format_krw,
+    format_krw_bn,
+    get_real_mode_user_inputs,
+    hero,
+    is_real_api_mode,
+    metric_card,
+    setup_page,
+    source_badge,
+)
 
 try:
     import modules.real_mode_components as real_components
@@ -118,62 +130,137 @@ setup_page(
 
 if is_real_api_mode():
     hero(
-        "Real API Mode CFO Dashboard",
-        "OpenDART·ECOS·market/public data 기반 CFO attention view",
-        "실제 상장 REIT에는 sample 수치를 적용하지 않습니다. 자동 수집과 parser를 먼저 시도하고, 근거가 부족한 항목만 manual validation 대상으로 표시합니다.",
+        "v12 API-First Real REIT CFO Dashboard",
+        "OpenDART·ECOS·market/public data 기반 CFO attention allocation view",
+        "실제 상장 REIT에는 sample 수치를 적용하지 않습니다. 자동 수집, 공시 parser, market/macro proxy를 먼저 적용하고, 근거가 부족한 항목은 source/confidence와 manual validation 대상으로 분리합니다.",
     )
     real_reit = select_real_reit("Real REIT 선택")
-    analysis = build_real_mode_analysis(real_reit, get_real_mode_user_inputs())
-    metrics = analysis["metrics"]
-    score = analysis["score"]
+    model = build_real_reit_dashboard_model(real_reit, get_real_mode_user_inputs())
+    metrics = model["metrics"]
+    derived = model["derived"]
+    risk_model = model["risk_model"]
 
-    render_real_reit_factual_panel(real_reit)
+    selected_name = model["profile"].get("real_reit_name", "선택 REIT")
+    overall_score = risk_model.get("overall_score")
+    score_display = "Not Available" if overall_score is None else f"{float(overall_score):.0f}/100"
+    data_confidence = metric_value(derived["data_confidence_score"])
 
     top_cols = st.columns(4)
-    top_cols[0].metric("Risk Score", score["risk_score_display"], score["risk_label"])
-    top_cols[1].metric("Data confidence", score["confidence_level"])
-    top_cols[2].metric("Refinancing pressure", score["risk_label"])
-    top_cols[3].metric("최근 정기공시", str(metrics.get("latest_report_date", "조회 불가")))
+    top_cols[0].metric("선택 REIT", selected_name)
+    top_cols[1].metric("Overall Risk Score", score_display, risk_model.get("overall_level", "Not Available"))
+    top_cols[2].metric("Score Type", risk_model.get("score_type", "Limited"))
+    top_cols[3].metric("Data Confidence", "데이터 미확보" if data_confidence is None else f"{float(data_confidence):.0f}/100")
 
-    key_cols = st.columns(4)
-    key_cols[0].metric("총자산", format_krw(metrics.get("total_assets_krw")))
-    key_cols[1].metric("총차입금", format_krw(metrics.get("total_debt_krw")))
-    key_cols[2].metric("LTV", "데이터 없음" if metrics.get("ltv_pct") is None else f"{float(metrics['ltv_pct']):.1f}%")
-    key_cols[3].metric("Dividend buffer", format_krw(metrics.get("dividend_buffer_krw")))
+    st.markdown("### CFO가 오늘 가장 먼저 확인해야 할 리스크")
+    alert_cols = st.columns(min(3, max(len(model["cfo_alerts"]), 1)))
+    for col, (_, alert) in zip(alert_cols, model["cfo_alerts"].head(3).iterrows()):
+        with col:
+            metric_card(
+                str(alert["Alert"]),
+                str(alert["Severity"]),
+                str(alert["CFO Action"]),
+                confidence_badge(str(alert["Confidence"])) + source_badge(str(alert["Source"])),
+            )
 
-    with st.expander("Key metric source / confidence", expanded=False):
-        source_rows = analysis["confidence_report"].head(12)
-        st.dataframe(source_rows, width="stretch", hide_index=True)
-
-    st.subheader("Risk Indicators")
-    indicator_display = analysis["indicators"].copy()
-    indicator_display["Risk Score"] = indicator_display["Risk Score"].map(
-        lambda value: "산출 제한" if pd.isna(value) else f"{float(value):.0f}/100"
-    )
-    st.dataframe(indicator_display, width="stretch", hide_index=True)
-
-    st.subheader("Top CFO Alerts")
-    st.dataframe(analysis["alerts"], width="stretch", hide_index=True)
+    card_specs = [
+        ("LTV", derived["core"]["ltv"], lambda v: "데이터 미확보" if v is None else f"{float(v):.1f}%"),
+        ("Total Debt", metrics["metric_details"].get("total_debt_krw"), format_krw),
+        ("Cash-to-Debt", derived["core"]["cash_to_debt"], lambda v: "데이터 미확보" if v is None else f"{float(v):.1f}%"),
+        ("Interest Burden", derived["core"]["interest_burden"], lambda v: "데이터 미확보" if v is None else f"{float(v):.1f}%"),
+        ("Dividend Buffer", derived["core"]["dividend_buffer"], format_krw),
+        ("Refi Pressure", derived["debt"]["refinancing_pressure_index"], lambda v: "데이터 미확보" if v is None else f"{float(v):.0f}/100"),
+        ("Market Cap", model["raw_bundle"].get("market_data", {}).get("market_cap"), format_krw),
+        ("Disclosure Freshness", None, lambda v: str(metrics.get("latest_report_date", "조회 불가"))),
+    ]
+    for start in range(0, len(card_specs), 4):
+        cols = st.columns(4)
+        for col, (label, metric, formatter) in zip(cols, card_specs[start : start + 4]):
+            with col:
+                value = metric_value(metric) if isinstance(metric, dict) else None
+                metric_card(
+                    label,
+                    formatter(value),
+                    "",
+                    (source_badge(metric_source_type(metric)) + confidence_badge(metric_confidence(metric))) if isinstance(metric, dict) else "",
+                )
 
     left, right = st.columns([1.05, 1])
     with left:
-        st.subheader("Debt Maturity Wall Summary")
-        wall = analysis["debt_maturity_wall"].copy()
-        if wall.empty:
-            st.info(wall.attrs.get("status_message", "자동 수집을 시도했으나 차입 만기 구조가 미확보되었습니다."))
+        st.subheader("Risk Score by Component")
+        components = model["risk_components"].copy()
+        chart_data = components.dropna(subset=["score"])
+        if chart_data.empty:
+            st.info("산출 가능한 risk component가 아직 부족합니다. Data Quality 페이지에서 missing metrics를 확인하세요.")
         else:
-            wall["금액"] = wall["금액"].map(format_krw)
-            st.dataframe(wall, width="stretch", hide_index=True)
+            fig = px.bar(
+                chart_data.sort_values("score"),
+                x="score",
+                y="component",
+                color="level",
+                orientation="h",
+                labels={"score": "Risk Score", "component": ""},
+                color_discrete_map={"Low": "#007c89", "Moderate": "#667085", "Elevated": "#b76e00", "High": "#c94f4f"},
+            )
+            fig.update_layout(height=420, margin=dict(l=10, r=10, t=20, b=10))
+            st.plotly_chart(fig, width="stretch")
+        st.dataframe(components, width="stretch", hide_index=True)
 
     with right:
-        st.subheader("Interest Rate Sensitivity")
-        scenario_display = analysis["scenario_outputs"][["Scenario", "Scenario 기준금리", "Interest expense impact", "Dividend buffer", "Refinancing pressure"]].copy()
-        scenario_display["Scenario 기준금리"] = scenario_display["Scenario 기준금리"].map(lambda value: f"{float(value):.2f}%")
-        scenario_display["Interest expense impact"] = scenario_display["Interest expense impact"].map(format_krw)
-        scenario_display["Dividend buffer"] = scenario_display["Dividend buffer"].map(format_krw)
-        st.dataframe(scenario_display, width="stretch", hide_index=True)
+        st.subheader("Scenario Risk Migration")
+        scenarios = model["scenario_outputs"].copy()
+        if scenarios.empty:
+            st.info("Scenario 산출에 필요한 macro assumption이 부족합니다.")
+        else:
+            fig = go.Figure()
+            fig.add_trace(
+                go.Bar(
+                    x=scenarios["Scenario"],
+                    y=scenarios["Dividend buffer impact"],
+                    name="Dividend buffer impact",
+                    marker_color="#007c89",
+                )
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=scenarios["Scenario"],
+                    y=scenarios["Risk score migration"],
+                    name="Risk score migration",
+                    mode="lines+markers",
+                    yaxis="y2",
+                    marker_color="#c94f4f",
+                )
+            )
+            fig.update_layout(
+                height=420,
+                margin=dict(l=10, r=10, t=20, b=10),
+                yaxis=dict(title="KRW impact"),
+                yaxis2=dict(title="Risk Score", overlaying="y", side="right", range=[0, 100]),
+                legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+            )
+            st.plotly_chart(fig, width="stretch")
+            display = scenarios[["Scenario", "Scenario 기준금리", "Refinancing pressure", "CFO action", "Source/Basis"]].copy()
+            st.dataframe(display, width="stretch", hide_index=True)
 
-    st.caption(f"Most recent disclosure: {metrics.get('latest_disclosure', '조회 불가')}")
+    st.subheader("Cross-REIT Peer Comparison")
+    st.caption("현재 v12는 real/public data가 확보된 항목만 selected vs peer 비교에 사용합니다. Peer 값이 미확보된 항목은 sample data로 채우지 않습니다.")
+    st.dataframe(model["peer_comparison"], width="stretch", hide_index=True)
+
+    st.subheader("Top CFO Alerts")
+    for _, alert in model["cfo_alerts"].head(5).iterrows():
+        cfo_alert_card(
+            int(alert["Priority"]),
+            str(alert["Severity"]),
+            str(alert["Alert"]),
+            str(alert["Why"]),
+            str(alert["CFO Action"]),
+            str(alert["Source"]),
+            str(alert["Confidence"]),
+        )
+
+    with st.expander("Source / Confidence detail", expanded=False):
+        st.dataframe(model["collected_metrics"].head(20), width="stretch", hide_index=True)
+
+    st.caption(f"Latest disclosure basis: {metrics.get('latest_disclosure', '조회 불가')}")
     st.stop()
 
 data = load_all_data()

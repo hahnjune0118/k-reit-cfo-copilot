@@ -2,7 +2,7 @@ import plotly.express as px
 import streamlit as st
 
 from modules.data_loader import load_all_data, load_disclosure_data, load_market_rate_data, reit_id_from_name, reit_options
-from modules.real_mode_analytics import build_real_mode_analysis
+from modules.real_reit_analytics import build_real_reit_dashboard_model
 from modules.risk_scoring import (
     data_quality_flags,
     readiness_roadmap,
@@ -82,7 +82,7 @@ def _fallback_data_availability_matrix(*args, **kwargs):
             {"Metric": "자산별 NOI", "Source": "사업보고서 / 내부자료", "API availability": "제한적", "Automation level": "Low", "Manual validation required?": "Yes", "Notes": "자산별 수익·비용 배분 확인 필요"},
             {"Metric": "차입 만기 구조", "Source": "사업보고서 주석 / 차입 약정", "API availability": "부분 가능", "Automation level": "Medium", "Manual validation required?": "Yes", "Notes": "공시 주석 파싱 및 검증 필요"},
             {"Metric": "세금효과", "Source": "세법 검토 / 내부 거래자료", "API availability": "불가", "Automation level": "Low", "Manual validation required?": "Yes", "Notes": "별도 세무 검토 필요"},
-            {"Metric": "Investor Q&A", "Source": "공시 / IR / 사용자 입력", "API availability": "부분 가능", "Automation level": "Medium", "Manual validation required?": "Yes", "Notes": "현재 v11은 rule-based"},
+            {"Metric": "Investor Q&A", "Source": "공시 / IR / 사용자 입력", "API availability": "부분 가능", "Automation level": "Medium", "Manual validation required?": "Yes", "Notes": "현재 v12는 rule-based이며 외부 LLM API를 사용하지 않음"},
         ]
     )
     st.dataframe(fallback, width="stretch")
@@ -109,44 +109,64 @@ setup_page(
 
 if is_real_api_mode():
     hero(
-        "Real API Mode Data Quality",
-        "자동 수집 상태, parser 결과, source confidence, manual validation 필요 영역을 구분",
-        "Real API Mode는 OpenDART 재무제표, 공시 원문 parser, ECOS macro data, market/public data, 외부 리츠/IR 자료 수집 시도를 분리해 AX readiness를 진단합니다.",
+        "v12 Real Data Quality & AI Readiness",
+        "source inventory, parser status, missing metrics, confidence distribution을 한 화면에서 진단",
+        "AX consulting은 AI 적용 전 데이터 foundation과 process maturity를 진단하는 것에서 시작합니다. v12는 OpenDART, ECOS, market/public data, 공시 parser, manual validation 필요 영역을 분리합니다.",
     )
     real_reit = select_real_reit("Real REIT 선택")
-    analysis = build_real_mode_analysis(real_reit, get_real_mode_user_inputs())
-    public_data = analysis["public_data"]
-    score = analysis["score"]
-
-    render_real_reit_factual_panel(real_reit)
+    model = build_real_reit_dashboard_model(real_reit, get_real_mode_user_inputs())
+    public_data = model["analysis"]["public_data"]
+    risk_model = model["risk_model"]
+    bundle = model["raw_bundle"]
 
     cols = st.columns(4)
-    cols[0].metric("Data confidence", score["confidence_level"])
-    cols[1].metric("Risk Score", score["risk_score_display"])
+    data_conf_row = model["derived"]["data_confidence_score"]
+    data_conf_value = data_conf_row.get("value")
+    cols[0].metric("Data Confidence Score", "데이터 미확보" if data_conf_value is None else f"{float(data_conf_value):.0f}/100")
+    cols[1].metric("Risk Score Type", risk_model["score_type"])
     cols[2].metric("OpenDART", "Fallback" if public_data["disclosures"].attrs.get("is_fallback", True) else "Connected")
     cols[3].metric("ECOS", "Fallback" if public_data["market_rates"].attrs.get("is_fallback", True) else "Connected")
 
-    st.subheader("데이터 확보 상태")
-    st.dataframe(analysis["confidence_report"], width="stretch", hide_index=True)
+    st.subheader("External Data Connection")
+    st.info(
+        "외부 API 연결은 데이터 자동 수집, 데이터 최신성, 반복 업무 감소, Scenario Engine 신뢰성 향상에 기여합니다. "
+        "API key가 없거나 응답이 비어도 앱은 sample fallback이 아니라 Not Available / Fallback Assumption으로 구분합니다."
+    )
+    st.dataframe(model["source_inventory"], width="stretch", hide_index=True)
 
-    bundle = public_data["real_data_bundle"]
-    with st.expander("Real Data Pipeline source log", expanded=False):
-        st.dataframe(bundle.get("data_sources", []), width="stretch", hide_index=True)
-        missing = bundle.get("missing_metrics", [])
+    st.subheader("Collected Metrics Table")
+    st.dataframe(model["collected_metrics"], width="stretch", hide_index=True)
+
+    left, right = st.columns([1, 1])
+    with left:
+        st.subheader("Missing Metrics")
+        missing = model.get("missing_metrics", [])
         if missing:
-            st.caption("자동 수집 시도 후 미확보 metric")
-            st.write(", ".join(missing))
+            st.write(", ".join(str(item) for item in missing))
+        else:
+            st.success("현재 bundle 기준 missing metric이 없습니다.")
+    with right:
+        st.subheader("Confidence Distribution")
+        distribution = model["confidence_distribution"]
+        fig = px.bar(distribution, x="Confidence", y="Metric Count", color="Confidence")
+        fig.update_layout(height=300, margin=dict(l=10, r=10, t=20, b=10), showlegend=False)
+        st.plotly_chart(fig, width="stretch")
+
+    with st.expander("Parser status and raw snippets", expanded=False):
         warnings = [warning for warning in bundle.get("warnings", []) if warning]
         if warnings:
             st.caption("수집 / parser warnings")
             st.write(warnings[:10])
+        snippets = model.get("parsed_evidence_snippets", [])
+        if snippets:
+            for item in snippets[:10]:
+                st.caption(f"[OpenDART Parsed] {item.get('keyword', '')}: {item.get('snippet', '')}")
+        else:
+            st.info("공시 원문 snippet은 아직 확보되지 않았습니다.")
 
     render_data_availability_matrix()
 
-    st.subheader("Macro / Market Assumption")
-    render_ecos_market_rate_panel(public_data["market_rates"])
-
-    with st.expander("OpenDART 공시 원문 조회 결과", expanded=False):
+    with st.expander("OpenDART disclosure list", expanded=False):
         render_opendart_disclosure_monitor(real_reit, disclosures=public_data["disclosures"])
 
     st.subheader("AX Readiness 관점")

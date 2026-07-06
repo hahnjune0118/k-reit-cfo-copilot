@@ -8,6 +8,7 @@ import pandas as pd
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 MACRO_ASSUMPTIONS_FILE = BASE_DIR / "data" / "macro_assumptions.csv"
+MACRO_SERIES_CONFIG_FILE = BASE_DIR / "data" / "macro_series_config.csv"
 
 
 def load_macro_assumptions() -> pd.DataFrame:
@@ -122,41 +123,94 @@ def get_refinancing_rate_spread(assumptions: pd.DataFrame | None = None) -> floa
 
 
 def build_rate_scenarios(
+    base_rate: float | pd.DataFrame | None = None,
+    credit_spread: float | pd.DataFrame | None = None,
     market_rate_data: pd.DataFrame | None = None,
     assumptions: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
+    if isinstance(base_rate, pd.DataFrame):
+        market_rate_data = base_rate
+        if isinstance(credit_spread, pd.DataFrame):
+            assumptions = credit_spread
+        base_rate = None
+        credit_spread = None
+    elif isinstance(credit_spread, pd.DataFrame) and assumptions is None:
+        assumptions = credit_spread
+        credit_spread = None
+
     assumptions = load_macro_assumptions() if assumptions is None else assumptions
     base = get_base_rate_assumption(market_rate_data)
+    if base_rate is not None:
+        base["rate_pct"] = float(base_rate)
+        base["source"] = "manual function input"
+        base["basis"] = "v12 Scenario Engine direct base_rate input"
+        base["is_fallback"] = True
     refi_spread = get_refinancing_rate_spread(assumptions)
-    credit_spread = get_credit_spread_assumption(assumptions)["spread_pct"]
+    credit_spread_value = float(credit_spread) if credit_spread is not None else float(get_credit_spread_assumption(assumptions)["spread_pct"])
 
     rows = [
         {
-            "Scenario": "Base",
+            "Scenario": "Base Case",
             "기준금리": float(base["rate_pct"]),
-            "credit spread": credit_spread,
+            "credit spread": credit_spread_value,
             "refinancing spread": refi_spread,
             "Scenario 기준금리": float(base["rate_pct"]) + refi_spread,
             "Source": base["source"],
             "Basis": base["basis"],
         },
         {
-            "Scenario": "Downside",
+            "Scenario": "Rate +50bp",
+            "기준금리": float(base["rate_pct"]) + 0.50,
+            "credit spread": credit_spread_value,
+            "refinancing spread": refi_spread,
+            "Scenario 기준금리": float(base["rate_pct"]) + 0.50 + refi_spread,
+            "Source": base["source"],
+            "Basis": "기준금리 +50bp sensitivity",
+        },
+        {
+            "Scenario": "Rate +100bp",
+            "기준금리": float(base["rate_pct"]) + 1.00,
+            "credit spread": credit_spread_value,
+            "refinancing spread": refi_spread,
+            "Scenario 기준금리": float(base["rate_pct"]) + 1.00 + refi_spread,
+            "Source": base["source"],
+            "Basis": "기준금리 +100bp sensitivity",
+        },
+        {
+            "Scenario": "Credit Spread +50bp",
+            "기준금리": float(base["rate_pct"]),
+            "credit spread": credit_spread_value + 0.50,
+            "refinancing spread": refi_spread + 0.50,
+            "Scenario 기준금리": float(base["rate_pct"]) + refi_spread + 0.50,
+            "Source": "credit spread proxy",
+            "Basis": "credit spread +50bp sensitivity",
+        },
+        {
+            "Scenario": "Combined Stress",
+            "기준금리": float(base["rate_pct"]) + 1.00,
+            "credit spread": credit_spread_value + 0.50,
+            "refinancing spread": refi_spread + 0.50,
+            "Scenario 기준금리": float(base["rate_pct"]) + 1.00 + refi_spread + 0.50,
+            "Source": "macro stress assumption",
+            "Basis": "기준금리 +100bp 및 spread +50bp combined stress",
+        },
+        {
+            "Scenario": "Downside Macro",
             "기준금리": float(base["rate_pct"]) + 0.60,
-            "credit spread": credit_spread + 0.35,
+            "credit spread": credit_spread_value + 0.35,
             "refinancing spread": refi_spread + 0.45,
             "Scenario 기준금리": float(base["rate_pct"]) + 0.60 + refi_spread + 0.45,
             "Source": "KDI/IMF/OECD-style local outlook assumption",
-            "Basis": "전망치 기반 가정",
+            "Basis": "전망치 기반 downside macro assumption",
         },
         {
-            "Scenario": "Upside",
+            "Scenario": "Upside Macro",
             "기준금리": max(float(base["rate_pct"]) - 0.40, 0),
-            "credit spread": max(credit_spread - 0.20, 0),
+            "credit spread": max(credit_spread_value - 0.20, 0),
             "refinancing spread": max(refi_spread - 0.25, 0),
             "Scenario 기준금리": max(float(base["rate_pct"]) - 0.40, 0) + max(refi_spread - 0.25, 0),
             "Source": "KDI/IMF/OECD-style local outlook assumption",
-            "Basis": "전망치 기반 가정",
+            "Basis": "전망치 기반 upside macro assumption",
         },
     ]
     return pd.DataFrame(rows)
@@ -230,6 +284,93 @@ def collect_credit_spread_proxy(api_key: str | None = None) -> dict[str, object]
         "Low",
         note,
     )
+
+
+def collect_treasury_yield_proxy(api_key: str | None = None) -> dict[str, object]:
+    del api_key
+    assumptions = load_macro_assumptions()
+    value = _latest_metric_value(assumptions, "government bond yield proxy", "base")
+    return _metric(
+        "treasury_yield",
+        value,
+        "%",
+        "local macro_assumptions.csv",
+        "Low" if value is not None else "Not available",
+        "ECOS treasury series 연동 전까지 local macro assumption을 proxy로 사용합니다.",
+    )
+
+
+def collect_corporate_bond_yield_proxy(api_key: str | None = None) -> dict[str, object]:
+    del api_key
+    treasury = collect_treasury_yield_proxy()
+    spread = collect_credit_spread_proxy()
+    value = None
+    if treasury.get("value") is not None and spread.get("value") is not None:
+        value = float(treasury["value"]) + float(spread["value"])
+    return _metric(
+        "corporate_bond_yield",
+        value,
+        "%",
+        "macro proxy calculation",
+        "Low" if value is not None else "Not available",
+        "treasury yield proxy와 credit spread proxy를 합산한 corporate bond yield proxy입니다.",
+    )
+
+
+def calculate_credit_spread_proxy(treasury: dict[str, object] | float | None, corporate: dict[str, object] | float | None) -> dict[str, object]:
+    def _value(item: dict[str, object] | float | None) -> float | None:
+        if isinstance(item, dict):
+            item = item.get("value")
+        try:
+            return None if item is None else float(item)
+        except (TypeError, ValueError):
+            return None
+
+    treasury_value = _value(treasury)
+    corporate_value = _value(corporate)
+    if treasury_value is None or corporate_value is None:
+        return _metric(
+            "credit_spread_proxy",
+            None,
+            "%",
+            "macro proxy calculation",
+            "Not available",
+            "treasury 또는 corporate bond yield proxy가 없어 credit spread를 계산하지 못했습니다.",
+        )
+    return _metric(
+        "credit_spread_proxy",
+        max(corporate_value - treasury_value, 0),
+        "%",
+        "macro proxy calculation",
+        "Low",
+        "corporate bond yield proxy - treasury yield proxy로 계산했습니다.",
+    )
+
+
+def build_refinancing_assumption_environment(api_key: str | None = None) -> dict[str, object]:
+    ecos = collect_ecos_rates(api_key)
+    treasury = collect_treasury_yield_proxy(api_key)
+    corporate = collect_corporate_bond_yield_proxy(api_key)
+    spread = calculate_credit_spread_proxy(treasury, corporate)
+    refinancing = build_refinancing_rate_assumption(ecos["base_rate"], treasury, spread)
+    return {
+        "base_rate": ecos["base_rate"],
+        "treasury_yield": treasury,
+        "corporate_bond_yield": corporate,
+        "credit_spread_proxy": spread,
+        "refinancing_rate_assumption": refinancing,
+        "scenarios": build_rate_scenarios(ecos["base_rate"].get("value"), spread.get("value")),
+        "status_message": ecos.get("status_message", ""),
+    }
+
+
+def get_macro_assumption_table() -> pd.DataFrame:
+    assumptions = load_macro_assumptions()
+    columns = ["source", "metric", "date", "value", "unit", "scenario", "note", "is_actual", "is_forecast"]
+    for column in columns:
+        if column not in assumptions.columns:
+            assumptions[column] = ""
+    return assumptions[columns].copy()
 
 
 def build_refinancing_rate_assumption(

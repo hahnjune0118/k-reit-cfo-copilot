@@ -15,12 +15,14 @@ import requests
 
 from modules.api_clients.config import get_dart_api_key
 from modules.macro_assumptions import build_macro_rate_environment
+from modules.account_mapper import match_account
+from modules.source_confidence import build_metric, infer_source_type, not_available_metric
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 CACHE_DIR = BASE_DIR / "data" / "cache"
 DART_BASE_URL = "https://opendart.fss.or.kr/api"
-USER_AGENT = "K-REIT-CFO-Copilot/11.1 (+portfolio prototype)"
+USER_AGENT = "K-REIT-CFO-Copilot/12 (+portfolio prototype)"
 
 FINANCIAL_REPORT_CODES = {
     "11011": "사업보고서",
@@ -35,7 +37,10 @@ ACCOUNT_ALIASES: dict[str, list[str]] = {
     "total_assets": ["자산총계", "자산 총계", "Total assets"],
     "total_liabilities": ["부채총계", "부채 총계", "Total liabilities"],
     "total_equity": ["자본총계", "자본 총계", "Total equity"],
+    "current_assets": ["유동자산", "유동자산합계", "Current assets"],
+    "noncurrent_assets": ["비유동자산", "비유동자산합계", "Non-current assets", "Noncurrent assets"],
     "revenue": ["매출액", "영업수익", "수익", "Revenue", "Operating revenue"],
+    "rental_income": ["임대수익", "임대료수익", "임대료", "Rental income", "Rental revenue"],
     "operating_income": ["영업이익", "Operating income"],
     "net_income": ["당기순이익", "분기순이익", "반기순이익", "Net income"],
     "cash_and_equivalents": ["현금및현금성자산", "현금 및 현금성자산", "Cash and cash equivalents"],
@@ -46,24 +51,33 @@ ACCOUNT_ALIASES: dict[str, list[str]] = {
     "current_liabilities": ["유동부채", "유동부채합계", "Current liabilities"],
     "noncurrent_liabilities": ["비유동부채", "비유동부채합계", "Non-current liabilities", "Noncurrent liabilities"],
     "finance_cost": ["금융비용", "이자비용", "Finance costs", "Interest expense"],
+    "interest_expense": ["이자비용", "금융비용", "Interest expense", "Finance costs"],
+    "operating_cash_flow": ["영업활동현금흐름", "영업활동으로 인한 현금흐름", "Cash flows from operating activities"],
+    "dividend_amount": ["배당금", "현금배당", "Dividends", "Dividend"],
 }
 
 REQUIRED_METRICS = [
     "total_assets",
     "total_liabilities",
     "total_equity",
+    "current_assets",
+    "noncurrent_assets",
     "total_debt",
     "cash",
     "cash_and_equivalents",
     "revenue",
+    "rental_income",
     "operating_income",
     "net_income",
     "interest_expense",
     "finance_cost",
+    "operating_cash_flow",
     "short_term_debt",
     "long_term_debt",
+    "borrowings",
     "bonds_payable",
     "current_liabilities",
+    "noncurrent_liabilities",
     "latest_price",
     "market_cap",
     "base_rate",
@@ -183,21 +197,27 @@ def build_metric_with_source(
     note: str | None = None,
     as_of: str | None = None,
 ) -> dict[str, Any]:
-    return {
-        "name": name,
-        "value": value,
-        "unit": unit,
-        "source": source,
-        "data_source": source,
-        "confidence": confidence,
-        "confidence_level": confidence,
-        "as_of": as_of or _now_iso(),
-        "note": note or "",
-    }
+    return build_metric(
+        name,
+        value,
+        unit,
+        source,
+        confidence,
+        source_type=infer_source_type(source),
+        as_of=as_of or _now_iso(),
+        calculation_method=note or "",
+        note=note or "",
+    )
 
 
 def _missing_metric(name: str, unit: str = "KRW", note: str = "") -> dict[str, Any]:
-    return build_metric_with_source(name, None, unit, "자동 수집 시도 후 미확보", "Not available", note)
+    return not_available_metric(
+        name,
+        unit,
+        source="Not Available",
+        note=note or "자동 수집 시도 후 미확보",
+        as_of=None,
+    )
 
 
 def _missing_financial_metric(
@@ -208,6 +228,9 @@ def _missing_financial_metric(
 ) -> dict[str, Any]:
     metric = build_metric_with_source(name, None, "KRW", source, "Not available", note)
     metric["as_of"] = as_of
+    metric["source_type"] = "Not Available"
+    metric["calculation_method"] = "Not calculated because OpenDART financial statement source data is unavailable."
+    metric["warning"] = note
     return metric
 
 
@@ -233,6 +256,9 @@ def _normalize_account_name(name: str) -> str:
 
 
 def map_opendart_account_name(account_name: str) -> str | None:
+    mapped = match_account(account_name)
+    if mapped:
+        return mapped
     normalized = _normalize_account_name(account_name)
     for canonical, aliases in ACCOUNT_ALIASES.items():
         for alias in aliases:
@@ -275,7 +301,10 @@ def _default_financial_metrics(
             "total_assets",
             "total_liabilities",
             "total_equity",
+            "current_assets",
+            "noncurrent_assets",
             "revenue",
+            "rental_income",
             "operating_income",
             "net_income",
             "cash",
@@ -288,6 +317,7 @@ def _default_financial_metrics(
             "noncurrent_liabilities",
             "interest_expense",
             "finance_cost",
+            "operating_cash_flow",
             "total_debt",
         ]
     }

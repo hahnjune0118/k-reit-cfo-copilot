@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from modules.data_loader import load_all_data, load_market_rate_data, reit_id_from_name, reit_options
-from modules.real_mode_analytics import build_real_mode_analysis
+from modules.real_reit_analytics import build_real_reit_dashboard_model
 from modules.scenario_engine import (
     cfo_interpretation,
     run_peer_scenarios,
@@ -93,74 +93,70 @@ setup_page(
 
 if is_real_api_mode():
     hero(
-        "Real API Mode Scenario Engine",
-        "ECOS 실제 금리와 macro assumption을 연결한 CFO scenario view",
-        "Base / Downside / Upside 금리 및 spread 가정을 사용하며, 회사별 현금흐름 항목은 OpenDART 재무제표와 공시 parser 결과를 먼저 반영합니다.",
+        "v12 Real Scenario Engine",
+        "금리, credit spread, refinancing pressure가 배당 buffer와 risk migration으로 이어지는 CFO decision view",
+        "Base Case, Rate +50bp, Rate +100bp, Credit Spread +50bp, Combined Stress, Downside Macro, Upside Macro를 기본 case로 제공합니다. 수동 slider는 advanced override로만 사용합니다.",
     )
     real_reit = select_real_reit("Real REIT 선택")
-    user_inputs = get_real_mode_user_inputs()
-    analysis = build_real_mode_analysis(real_reit, user_inputs)
-    metrics = analysis["metrics"]
-    render_real_reit_factual_panel(real_reit)
+    model = build_real_reit_dashboard_model(real_reit, get_real_mode_user_inputs())
+    metrics = model["metrics"]
+    scenario_outputs = model["scenario_outputs"].copy()
 
-    st.subheader("Macro Assumption Layer")
-    render_ecos_market_rate_panel(analysis["public_data"]["market_rates"])
-    macro_view = analysis["public_data"]["rate_scenarios"].copy()
-    for column in ["기준금리", "credit spread", "refinancing spread", "Scenario 기준금리"]:
-        macro_view[column] = macro_view[column].map(lambda value: f"{float(value):.2f}%")
-    st.dataframe(macro_view, width="stretch", hide_index=True)
+    top_cols = st.columns(4)
+    top_cols[0].metric("선택 REIT", model["profile"].get("real_reit_name", "선택 REIT"))
+    top_cols[1].metric("Base Rate", "데이터 미확보" if metrics.get("base_rate_pct") is None else f"{float(metrics['base_rate_pct']):.2f}%")
+    top_cols[2].metric("Refinancing Rate", "데이터 미확보" if metrics.get("refinancing_rate_pct") is None else f"{float(metrics['refinancing_rate_pct']):.2f}%")
+    top_cols[3].metric("Risk Score Type", model["risk_model"].get("score_type", "Limited"))
 
-    st.subheader("Scenario Overlay")
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        rate_shock = st.slider("추가 금리 충격 (bp)", -50, 200, 50, 25)
-    with col2:
-        rent_change = st.slider("임대료 변화율 (%)", -10.0, 10.0, 0.0, 0.5)
-    with col3:
-        asset_value_change = st.slider("자산가치 변화율 (%)", -20.0, 10.0, 0.0, 0.5)
-    with col4:
-        include_tax_effect = st.checkbox("세금효과 반영 여부", value=True)
-
-    scenario_outputs = analysis["scenario_outputs"].copy()
-    total_debt = metrics.get("total_debt_krw")
-    floating_pct = metrics.get("floating_debt_pct") or 0
-    annual_noi = metrics.get("annual_noi_krw")
-    tax_drag = 0.01 if include_tax_effect else 0.0
-    extra_interest = total_debt * floating_pct / 100 * rate_shock / 10000 if total_debt is not None else None
-    rent_delta = annual_noi * rent_change / 100 if annual_noi is not None else None
-
-    if extra_interest is not None:
-        scenario_outputs["Interest expense impact"] = scenario_outputs["Interest expense impact"].fillna(0) + extra_interest
-    if rent_delta is not None:
-        scenario_outputs["Dividend buffer"] = scenario_outputs["Dividend buffer"].apply(
-            lambda value: None if pd.isna(value) else value + rent_delta - max(annual_noi * tax_drag, 0)
-        )
-    scenario_outputs["Asset value change"] = f"{asset_value_change:+.1f}%"
-
+    st.subheader("Scenario Summary Table")
     display = scenario_outputs.copy()
-    display["Scenario 기준금리"] = display["Scenario 기준금리"].map(lambda value: f"{float(value):.2f}%")
-    display["Interest expense impact"] = display["Interest expense impact"].map(format_krw)
-    display["Dividend buffer"] = display["Dividend buffer"].map(format_krw)
-    st.subheader("Base / Downside / Upside Scenario")
+    for column in ["Scenario 기준금리", "Refinancing rate impact", "LTV sensitivity", "Risk score migration"]:
+        if column in display.columns:
+            display[column] = display[column].map(lambda value: "데이터 미확보" if pd.isna(value) else f"{float(value):.2f}")
+    for column in ["Interest expense impact", "Dividend buffer impact"]:
+        if column in display.columns:
+            display[column] = display[column].map(format_krw)
     st.dataframe(display, width="stretch", hide_index=True)
 
-    chart_df = scenario_outputs.copy()
+    chart_df = model["scenario_outputs"].copy()
     left, right = st.columns(2)
     with left:
         st.subheader("Dividend Buffer Impact")
-        if chart_df["Dividend buffer"].notna().any():
-            fig = px.bar(chart_df, x="Scenario", y="Dividend buffer", color="Scenario", labels={"Dividend buffer": "Dividend buffer"})
+        if not chart_df.empty and chart_df["Dividend buffer impact"].notna().any():
+            fig = px.bar(chart_df, x="Scenario", y="Dividend buffer impact", color="Scenario", labels={"Dividend buffer impact": "Dividend buffer impact"})
             fig.update_layout(height=330, margin=dict(l=10, r=10, t=20, b=10), showlegend=False)
             st.plotly_chart(fig, width="stretch")
         else:
             st.info("Dividend buffer는 OpenDART/공시 parser에서 확보된 NOI proxy와 배당금이 부족하면 산출이 제한됩니다.")
     with right:
-        st.subheader("Refinancing Pressure Impact")
-        st.dataframe(
-            chart_df[["Scenario", "Refinancing pressure", "Source/Basis"]].rename(columns={"Source/Basis": "근거"}),
-            width="stretch",
-            hide_index=True,
-        )
+        st.subheader("Risk Score Migration")
+        if not chart_df.empty and chart_df["Risk score migration"].notna().any():
+            fig = px.line(chart_df, x="Scenario", y="Risk score migration", markers=True, labels={"Risk score migration": "Risk Score"})
+            fig.update_layout(height=330, margin=dict(l=10, r=10, t=20, b=10), yaxis=dict(range=[0, 100]))
+            st.plotly_chart(fig, width="stretch")
+        else:
+            st.info("Risk score migration은 산출 가능한 component가 부족하면 제한됩니다.")
+
+    st.subheader("CFO Interpretation")
+    st.markdown(
+        """
+        - **핵심 변화**: 금리와 spread 상승은 interest expense impact와 refinancing rate impact를 통해 배당 buffer를 압박할 수 있습니다.
+        - **재무적 영향**: 현재 결과는 공개 API, 공시 parser, macro proxy, 사용자 보완값을 구분해 계산한 MVP 수준의 예비 시뮬레이션입니다.
+        - **CFO가 확인해야 할 사항**: FFO/AFFO bridge, 실제 차입 만기표, 변동금리 비중, hedge 조건, 세금효과는 내부 자료로 검증해야 합니다.
+        """
+    )
+
+    with st.expander("Advanced manual override", expanded=False):
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.slider("추가 금리 충격 (bp)", -50, 200, 50, 25, key="v12_manual_rate_shock")
+        with col2:
+            st.slider("임대료 변화율 (%)", -10.0, 10.0, 0.0, 0.5, key="v12_manual_rent_change")
+        with col3:
+            st.slider("자산가치 변화율 (%)", -20.0, 10.0, 0.0, 0.5, key="v12_manual_asset_change")
+        with col4:
+            st.checkbox("세금효과 반영 여부", value=True, key="v12_manual_tax_toggle")
+        st.caption("Advanced override는 사용자 입력 기반 예비 sensitivity입니다. Real API Mode의 source-tagged factual data와 구분해서 해석해야 합니다.")
 
     render_real_mode_cfo_interpretation(real_reit, scenario=scenario_outputs)
     st.stop()

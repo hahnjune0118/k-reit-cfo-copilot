@@ -7,7 +7,7 @@ from modules.memo_generator import (
     generate_investor_qa,
     markdown_to_plain_text,
 )
-from modules.real_mode_analytics import build_real_mode_analysis
+from modules.real_reit_analytics import build_real_reit_dashboard_model
 from modules.risk_scoring import attention_scores, score_assets, top_cfo_alerts
 from modules.scenario_engine import run_scenario
 from modules.ui_components import format_krw, get_real_mode_user_inputs, hero, is_real_api_mode, setup_page
@@ -79,9 +79,9 @@ setup_page(
 
 if is_real_api_mode():
     hero(
-        "Real API Mode Memo",
-        "공개 데이터와 입력 가정의 한계를 명시하는 CFO communication draft",
-        "투자 의견이나 신용 판단은 생성하지 않고, 자동 수집된 근거와 parser/proxy 한계, manual validation 필요 항목을 보수적으로 정리합니다.",
+        "v12 Real Mode AI Memo & Investor Q&A",
+        "정량 output을 CFO-level management narrative와 IR communication draft로 전환",
+        "외부 LLM API 없이 rule-based로 작성하며, source label과 confidence를 함께 표시합니다. 투자 의견, 신용 판단, 부정적 리스크 평가는 생성하지 않습니다.",
     )
     real_reit = select_real_reit("Real REIT 선택")
     focus = st.sidebar.selectbox(
@@ -89,26 +89,27 @@ if is_real_api_mode():
         list(FOCUS_LABELS.keys()),
         format_func=lambda key: FOCUS_LABELS[key],
     )
-    analysis = build_real_mode_analysis(real_reit, get_real_mode_user_inputs())
-    metrics = analysis["metrics"]
-    score = analysis["score"]
+    model = build_real_reit_dashboard_model(real_reit, get_real_mode_user_inputs())
+    analysis = model["analysis"]
+    metrics = model["metrics"]
+    risk_model = model["risk_model"]
 
-    render_real_reit_factual_panel(real_reit)
     metric_cols = st.columns(4)
-    metric_cols[0].metric("Risk Score", score["risk_score_display"], score["risk_label"])
-    metric_cols[1].metric("Data confidence", score["confidence_level"])
+    risk_score_text = "Not Available" if risk_model["overall_score"] is None else f"{float(risk_model['overall_score']):.0f}/100"
+    metric_cols[0].metric("Risk Score", risk_score_text, risk_model["overall_level"])
+    metric_cols[1].metric("Score Type", risk_model["score_type"])
     metric_cols[2].metric("Dividend buffer", format_krw(metrics.get("dividend_buffer_krw")))
     metric_cols[3].metric("Refinancing 가정 금리", f"{float(metrics['refinancing_rate_pct']):.2f}%" if metrics.get("refinancing_rate_pct") is not None else "데이터 없음")
 
     alerts_text = "\n".join(
-        f"- {row['Alert']}: {row['Recommended action']} ({row['Basis']})"
-        for _, row in analysis["alerts"].iterrows()
+        f"- {row['Alert']}: {row['CFO Action']} [{row['Source']} / {row['Confidence']}]"
+        for _, row in model["cfo_alerts"].iterrows()
     )
-    validation_rows = analysis["confidence_report"]
+    validation_rows = model["collected_metrics"]
     validation_text = "\n".join(
-        f"- {row['Metric']}: {row['Source/Basis']} / {row['Confidence']}"
+        f"- {row['Metric']}: {row['Source Type']} / {row['Confidence']}"
         for _, row in validation_rows.iterrows()
-        if row["Validation"] == "필요"
+        if row["Status"] == "미확보"
     )
     base_rate_text = f"{float(metrics['base_rate_pct']):.2f}%" if metrics.get("base_rate_pct") is not None else "데이터 없음"
     spread_text = (
@@ -121,8 +122,9 @@ if is_real_api_mode():
 ### 핵심 요약
 - 선택 REIT: {metrics['reit_name']}
 - Memo focus: {FOCUS_LABELS[focus]}
-- Risk Score: {score['risk_score_display']} ({score['risk_label']})
-- Data confidence: {score['confidence_level']}
+- Risk Score: {risk_score_text} ({risk_model['overall_level']})
+- Score Type: {risk_model['score_type']}
+- 주요 근거: OpenDART API, OpenDART Parsed, ECOS API 또는 fallback assumption을 source label로 구분
 
 ### 주요 리스크
 {alerts_text}
@@ -135,6 +137,10 @@ if is_real_api_mode():
 - 기준금리: {base_rate_text}
 - Refinancing spread assumption: {spread_text}
 - 차입 만기 구조는 OpenDART 재무제표 기반 proxy를 먼저 사용하며, 약정별 만기는 공시 주석 또는 내부 treasury data 확인이 필요합니다.
+
+### Board-level Risk Summary
+- 전체 score는 사용 가능한 risk component 수에 따라 Full, Partial, Limited로 구분합니다.
+- v12는 실제 상장 REIT의 투자 의견이나 신용 판단을 제시하지 않고, CFO가 확인해야 할 attention area만 정리합니다.
 
 ### 세금효과 고려사항
 - 세금효과는 현재 공개 API로 자동 검증하지 않으며 별도 세무 검토가 필요합니다.
@@ -152,6 +158,8 @@ if is_real_api_mode():
 ### 답변 초안
 현재 분석은 OpenDART·ECOS 등 공개 API로 확인 가능한 factual data와 사용자가 입력한 가정, 그리고 수동 관리 macro assumption을 구분해 작성했습니다. Scenario 기준금리와 refinancing spread가 상승하면 interest expense impact와 dividend buffer가 변동할 수 있으므로, 회사는 공시 원문과 내부 treasury data를 기준으로 차입 만기 구조와 FFO/AFFO bridge를 확인해야 합니다.
 
+당사가 현재 확인 가능한 범위는 [OpenDART API] 공시 목록, [OpenDART Parsed] 공시 원문 keyword evidence, [ECOS API/Fallback Assumption] 금리 가정, [KRX / Market Data] 시장 데이터입니다. 미확보 metric은 투자자 커뮤니케이션 전에 manual validation을 거쳐야 합니다.
+
 ### 커뮤니케이션 유의사항
 - 실제 투자 판단이나 신용 판단으로 표현하지 않습니다.
 - 데이터 미확보 항목은 “자동 수집 시도 후 미확보” 또는 “manual validation 필요”로 설명합니다.
@@ -163,8 +171,15 @@ if is_real_api_mode():
     with tabs[1]:
         st.markdown(qa)
     with tabs[2]:
-        st.dataframe(analysis["confidence_report"], width="stretch", hide_index=True)
-        st.dataframe(analysis["alerts"], width="stretch", hide_index=True)
+        st.dataframe(model["collected_metrics"], width="stretch", hide_index=True)
+        st.dataframe(model["cfo_alerts"], width="stretch", hide_index=True)
+        with st.expander("Raw evidence snippets", expanded=False):
+            snippets = model.get("parsed_evidence_snippets", [])
+            if snippets:
+                for item in snippets[:10]:
+                    st.caption(f"[OpenDART Parsed] {item.get('keyword', '')}: {item.get('snippet', '')}")
+            else:
+                st.info("공시 원문 snippet은 아직 확보되지 않았습니다.")
 
     st.download_button("Real Mode Memo 다운로드 (.md)", data=memo, file_name="real_mode_cfo_memo.md", mime="text/markdown")
     st.download_button("Real Mode Investor Q&A 다운로드 (.md)", data=qa, file_name="real_mode_investor_qa.md", mime="text/markdown")

@@ -2,11 +2,13 @@ import plotly.express as px
 import streamlit as st
 
 from modules.data_loader import load_all_data
-from modules.real_mode_analytics import build_real_mode_analysis
+from modules.real_reit_analytics import build_real_reit_dashboard_model
 from modules.risk_scoring import executive_signal_table
+from modules.source_confidence import metric_value
 from modules.ui_components import (
     INDEXED_PAGE_LABELS,
     format_krw_bn,
+    format_krw,
     get_real_mode_user_inputs,
     hero,
     is_real_api_mode,
@@ -91,24 +93,32 @@ hero(
 if is_real_api_mode():
     render_real_mode_warning()
     real_reit = select_real_reit("Real REIT 선택")
-    analysis = build_real_mode_analysis(real_reit, get_real_mode_user_inputs())
-    metrics = analysis["metrics"]
-    score = analysis["score"]
+    model = build_real_reit_dashboard_model(real_reit, get_real_mode_user_inputs())
+    metrics = model["metrics"]
+    risk_model = model["risk_model"]
 
-    render_real_reit_factual_panel(real_reit)
     cols = st.columns(4)
-    cols[0].metric("Risk Score", score["risk_score_display"], score["risk_label"])
-    cols[1].metric("Data confidence", score["confidence_level"])
-    cols[2].metric("기준금리", f"{float(metrics['base_rate_pct']):.2f}%" if metrics.get("base_rate_pct") is not None else "데이터 없음")
-    cols[3].metric(
+    risk_score_text = "Not Available" if risk_model["overall_score"] is None else f"{float(risk_model['overall_score']):.0f}/100"
+    data_confidence = metric_value(model["derived"]["data_confidence_score"])
+    cols[0].metric("선택 REIT", model["profile"].get("real_reit_name", "선택 REIT"))
+    cols[1].metric("Risk Score", risk_score_text, risk_model["overall_level"])
+    cols[2].metric("Data Confidence", "데이터 미확보" if data_confidence is None else f"{float(data_confidence):.0f}/100")
+    cols[3].metric("Score Type", risk_model["score_type"])
+
+    cols = st.columns(4)
+    cols[0].metric("기준금리", f"{float(metrics['base_rate_pct']):.2f}%" if metrics.get("base_rate_pct") is not None else "데이터 없음")
+    cols[1].metric(
         "Refinancing 가정 금리",
         f"{float(metrics['refinancing_rate_pct']):.2f}%" if metrics.get("refinancing_rate_pct") is not None else "데이터 없음",
     )
-    st.caption("Risk Score는 OpenDART, 공시 parser, market/public data, macro proxy에서 최소 4개 category가 확보될 때 산출합니다.")
+    cols[2].metric("총차입금", format_krw(metrics.get("total_debt_krw")))
+    cols[3].metric("Dividend Buffer", format_krw(metrics.get("dividend_buffer_krw")))
+
+    st.caption("v12에서는 OpenDART, 공시 parser, market/public data, macro proxy를 source-tagged metric으로 구분하고, sample values를 Real API Mode financials에 사용하지 않습니다.")
     with st.expander("Real Data Pipeline source / confidence", expanded=False):
-        st.dataframe(analysis["confidence_report"].head(12), width="stretch", hide_index=True)
+        st.dataframe(model["collected_metrics"].head(12), width="stretch", hide_index=True)
     st.subheader("Top CFO Alerts")
-    st.dataframe(analysis["alerts"], width="stretch", hide_index=True)
+    st.dataframe(model["cfo_alerts"], width="stretch", hide_index=True)
     st.stop()
 
 col1, col2, col3 = st.columns(3)

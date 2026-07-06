@@ -8,7 +8,7 @@ import streamlit as st
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 VERSION_FILE = BASE_DIR / "VERSION.md"
-SAMPLE_MODE = "Sample Mode"
+SAMPLE_MODE = "Demo / Sample Mode"
 REAL_API_MODE = "Real API Mode"
 
 INDEXED_PAGE_LABELS = [
@@ -24,13 +24,13 @@ INDEXED_PAGE_LABELS = [
 
 def get_app_version() -> str:
     if not VERSION_FILE.exists():
-        return "v11.1"
+        return "v12"
 
     for line in VERSION_FILE.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if stripped.startswith("Current version:"):
             return stripped.split(":", 1)[1].strip()
-    return "v11.1"
+    return "v12"
 
 
 APP_VERSION = get_app_version()
@@ -59,10 +59,10 @@ def render_sidebar_version() -> None:
 def render_data_mode_selector() -> str:
     mode = st.sidebar.radio(
         "Data Mode",
-        [SAMPLE_MODE, REAL_API_MODE],
+        [REAL_API_MODE, SAMPLE_MODE],
         index=0,
         key="data_mode",
-        help="Sample Mode는 fictional data 기반 end-to-end demo, Real API Mode는 공개 API 기반 factual data 조회입니다.",
+        help="Real API Mode는 공개 API와 source-tagged metrics 중심, Demo / Sample Mode는 fictional sample data 기반 end-to-end 데모입니다.",
     )
     return str(mode)
 
@@ -147,7 +147,7 @@ def get_real_mode_user_inputs() -> dict[str, float | None]:
 
 
 def get_data_mode() -> str:
-    return str(st.session_state.get("data_mode", SAMPLE_MODE))
+    return str(st.session_state.get("data_mode", REAL_API_MODE))
 
 
 def is_real_api_mode() -> bool:
@@ -168,7 +168,7 @@ def render_sidebar_disclaimer() -> None:
         )
     else:
         st.sidebar.caption(
-            "Sample Mode: 회사명, 수치, Risk Score, 공시 신호는 모두 fictional sample data입니다. "
+            "Demo / Sample Mode: 회사명, 수치, Risk Score, 공시 신호는 모두 fictional sample data입니다. "
             "실제 기업 재무상태, 공시 내용 또는 투자판단을 나타내지 않습니다."
         )
 
@@ -342,6 +342,88 @@ def risk_tag(risk_tier: str) -> str:
     elif normalized == "medium":
         css = "tag-medium"
     return f'<span class="{css}">{risk_tier}</span>'
+
+
+def _badge(text: str, background: str, color: str = "#ffffff") -> str:
+    return (
+        f"<span style='display:inline-block;background:{background};color:{color};"
+        "border-radius:6px;padding:2px 8px;font-size:0.76rem;font-weight:700;"
+        "margin-right:4px;white-space:nowrap;'>"
+        f"{text}</span>"
+    )
+
+
+def risk_badge(level: str | None) -> str:
+    label = str(level or "Not Available")
+    colors = {
+        "Low": "#007c89",
+        "Moderate": "#667085",
+        "Watch": "#b76e00",
+        "Elevated": "#b76e00",
+        "High": "#c94f4f",
+        "Not Available": "#98a2b3",
+    }
+    return _badge(label, colors.get(label, "#98a2b3"))
+
+
+def source_badge(source_type: str | None) -> str:
+    label = str(source_type or "Not Available")
+    colors = {
+        "OpenDART API": "#263b5e",
+        "OpenDART Parsed": "#4c6f91",
+        "ECOS API": "#007c89",
+        "KRX / Market Data": "#5a5f73",
+        "KAREIT / REIT Association": "#667085",
+        "Company IR": "#667085",
+        "Local Cache": "#7a6f5a",
+        "Inferred Proxy": "#b76e00",
+        "Fallback Assumption": "#8a6f3d",
+        "Not Available": "#98a2b3",
+    }
+    return _badge(label, colors.get(label, "#98a2b3"))
+
+
+def confidence_badge(confidence: str | None) -> str:
+    label = str(confidence or "Not Available")
+    colors = {
+        "High": "#007c89",
+        "Medium": "#4c6f91",
+        "Low": "#b76e00",
+        "Not Available": "#98a2b3",
+        "Not available": "#98a2b3",
+    }
+    return _badge(label, colors.get(label, "#98a2b3"))
+
+
+def metric_card(label: str, value: str, detail: str = "", badges: str = "") -> None:
+    st.markdown(
+        f"""
+        <div class="signal-card">
+            <div class="signal-label">{label}</div>
+            <div class="signal-value">{value}</div>
+            <div class="signal-detail">{badges}</div>
+            <div class="signal-detail">{detail}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def cfo_alert_card(priority: int, severity: str, title: str, why: str, action: str, source: str, confidence: str) -> None:
+    st.markdown(
+        f"""
+        <div class="consulting-hero">
+            <div class="eyebrow">Alert #{priority} · {risk_badge(severity)} {confidence_badge(confidence)}</div>
+            <div class="hero-title">{title}</div>
+            <div class="hero-body">
+                <strong>왜 중요한가</strong><br>{why}<br><br>
+                <strong>권고 액션</strong><br>{action}<br><br>
+                {source_badge(source)}
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 def _compact_number(value: float, digits: int = 1) -> str:

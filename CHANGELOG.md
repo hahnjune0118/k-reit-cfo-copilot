@@ -1,5 +1,25 @@
 # CHANGELOG
 
+## v12 - API-First Real REIT CFO Intelligence Upgrade
+
+- VERSION.md의 current version을 v12로 업데이트했습니다.
+- Real API Mode를 기본 흐름으로 전환하고, Sample Mode를 Demo / Sample Mode로 재포지셔닝했습니다.
+- `modules/source_confidence.py`를 추가해 모든 real metric에 `value`, `unit`, `source`, `source_type`, `confidence`, `as_of`, `calculation_method`, `warning` schema를 적용했습니다.
+- `modules/account_mapper.py`를 추가해 OpenDART 재무제표 계정명을 Korean/English alias로 매핑하도록 했습니다.
+- `modules/opendart_client.py`, `modules/opendart_parser.py`, `modules/market_data_client.py` wrapper를 추가해 API-first data layer를 분리했습니다.
+- `modules/real_reit_analytics.py`를 추가해 CFO Dashboard, Scenario Engine, Asset & Debt, AI Memo, Data Quality page가 공통 Real REIT dashboard model을 사용하도록 했습니다.
+- `modules/real_reit_risk_model.py`를 추가해 Leverage, Liquidity, Interest Rate, Refinancing, Dividend Sustainability, Market Signal, Disclosure Freshness, Data Quality 8개 component risk model을 구성했습니다.
+- `data/real_reit_master.csv`를 v12 필드 구조로 확장했습니다: `real_reit_name`, `display_name`, `stock_code`, `corp_code`, `market`, `sector`, `sponsor`, `amc`, `listing_date`, `homepage_url`, `ir_url`, `dart_corp_name`, `notes`.
+- `data/macro_series_config.csv`를 추가해 ECOS/macro series roadmap을 명시했습니다.
+- CFO Executive Dashboard를 v12 attention allocation 화면으로 개선했습니다: Overall Risk Score, Score Type, data confidence, component risk, scenario migration, peer comparison availability, Top CFO Alerts.
+- Scenario Engine을 기본 7개 case로 확장했습니다: Base Case, Rate +50bp, Rate +100bp, Credit Spread +50bp, Combined Stress, Downside Macro, Upside Macro.
+- Asset & Debt Risk page에 debt composition, maturity wall, interest sensitivity, debt note evidence snippet 영역을 추가했습니다.
+- AI Memo & Investor Q&A page가 source label과 confidence를 포함한 rule-based CFO memo와 IR Q&A draft를 생성하도록 개선했습니다.
+- Data Quality & AI Readiness page에 source inventory, collected metrics table, missing metrics, confidence distribution, parser snippets를 추가했습니다.
+- API key가 없는 경우 company-specific financials를 High confidence로 표시하지 않고 `Not Available`로 유지합니다.
+- OpenAI API, Power BI, Figma, Power Automate는 v12에 추가하지 않았습니다.
+- v12 regression tests를 추가했습니다: source schema, account mapper, API key missing financials, risk score type, macro scenario, real master schema, sample leakage 방지, source inventory.
+
 ## v11.1 - Automated Real Data Collection Layer
 
 - VERSION.md의 current version을 v11.1로 업데이트했습니다.

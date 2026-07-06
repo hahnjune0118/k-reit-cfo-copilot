@@ -1,0 +1,4 @@
+series_name,provider,stat_code,item_code,cycle,purpose,status
+BOK base rate,ECOS,722Y001,0101000,D,Scenario Engine base interest rate,Configured
+Treasury yield proxy,ECOS,TBD,TBD,D,Refinancing spread proxy roadmap,Future mapping
+Corporate bond yield proxy,ECOS,TBD,TBD,D,Credit spread proxy roadmap,Future mapping

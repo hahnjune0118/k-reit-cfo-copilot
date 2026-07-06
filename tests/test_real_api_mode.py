@@ -232,7 +232,7 @@ def test_v11_1_real_data_pipeline_returns_bundle_without_api_keys(monkeypatch) -
     assert bundle["selected_reit_name"] == selected["real_reit_name"]
     assert {"financials", "market_data", "macro_data", "reit_specific", "data_sources", "missing_metrics"}.issubset(bundle)
     assert isinstance(bundle["missing_metrics"], list)
-    assert bundle["financials"]["total_assets"]["confidence"] == "Not available"
+    assert bundle["financials"]["total_assets"]["confidence"] == "Not Available"
 
 
 def test_v11_1_risk_score_calculates_with_at_least_four_components(monkeypatch) -> None:

@@ -3,7 +3,7 @@ import pandas as pd
 import streamlit as st
 
 from modules.data_loader import load_all_data, reit_id_from_name, reit_options
-from modules.real_mode_analytics import build_real_mode_analysis
+from modules.real_reit_analytics import build_real_reit_dashboard_model
 from modules.risk_scoring import debt_maturity_wall, refinancing_risk_table, score_assets
 from modules.ui_components import format_krw, format_krw_bn, get_real_mode_user_inputs, hero, is_real_api_mode, setup_page
 
@@ -71,24 +71,48 @@ setup_page("4. 자산 및 차입 리스크", "asset-level Risk Score와 debt mat
 
 if is_real_api_mode():
     hero(
-        "Real API Mode Asset & Debt Risk",
-        "차입 만기, 금리 민감도, refinancing pressure를 근거 수준별로 표시",
-        "OpenDART 재무제표, 공시 원문 parser, market/public data를 먼저 시도하고, 자동 확보되지 않는 debt schedule과 asset-level NOI만 검증 대상으로 분리합니다.",
+        "v12 Real Asset & Debt Risk",
+        "차입 구성, maturity wall, refinancing pressure, interest sensitivity를 CFO 검토 항목으로 전환",
+        "OpenDART 재무제표와 공시 원문 parser를 먼저 사용하고, 담보·금리조건·자산별 NOI처럼 구조화가 어려운 항목은 manual validation으로 분리합니다.",
     )
     real_reit = select_real_reit("Real REIT 선택")
-    analysis = build_real_mode_analysis(real_reit, get_real_mode_user_inputs())
-    metrics = analysis["metrics"]
-    score = analysis["score"]
+    model = build_real_reit_dashboard_model(real_reit, get_real_mode_user_inputs())
+    metrics = model["metrics"]
+    derived = model["derived"]
+    risk_model = model["risk_model"]
 
-    render_real_reit_factual_panel(real_reit)
     cols = st.columns(4)
     cols[0].metric("총차입금", format_krw(metrics.get("total_debt_krw")))
     cols[1].metric("LTV", "데이터 없음" if metrics.get("ltv_pct") is None else f"{float(metrics['ltv_pct']):.1f}%")
-    cols[2].metric("Risk Score", score["risk_score_display"], score["risk_label"])
-    cols[3].metric("Data confidence", score["confidence_level"])
+    refi_pressure = derived["debt"]["refinancing_pressure_index"].get("value")
+    cols[2].metric("Refinancing Pressure", "데이터 없음" if refi_pressure is None else f"{float(refi_pressure):.0f}/100")
+    cols[3].metric("Overall Risk", "Not Available" if risk_model["overall_score"] is None else f"{float(risk_model['overall_score']):.0f}/100", risk_model["overall_level"])
+
+    st.subheader("Debt Composition")
+    raw_financials = model["raw_bundle"].get("financials", {})
+    debt_rows = []
+    for label, key in [
+        ("Short-term debt", "short_term_debt"),
+        ("Long-term debt", "long_term_debt"),
+        ("Borrowings", "borrowings"),
+        ("Bonds payable", "bonds_payable"),
+        ("Current liabilities", "current_liabilities"),
+        ("Noncurrent liabilities", "noncurrent_liabilities"),
+    ]:
+        metric = raw_financials.get(key, {})
+        debt_rows.append(
+            {
+                "항목": label,
+                "금액": format_krw(metric.get("value") if isinstance(metric, dict) else None),
+                "Source": metric.get("source", "Not Available") if isinstance(metric, dict) else "Not Available",
+                "Confidence": metric.get("confidence", "Not Available") if isinstance(metric, dict) else "Not Available",
+                "Warning": metric.get("warning", metric.get("note", "")) if isinstance(metric, dict) else "",
+            }
+        )
+    st.dataframe(pd.DataFrame(debt_rows), width="stretch", hide_index=True)
 
     st.subheader("Debt Maturity Wall")
-    wall = analysis["debt_maturity_wall"].copy()
+    wall = model["debt_maturity_wall"].copy()
     if wall.empty:
         st.info(wall.attrs.get("status_message", "자동 수집을 시도했으나 차입 만기 구조가 미확보되었습니다."))
     else:
@@ -99,18 +123,26 @@ if is_real_api_mode():
         wall["금액"] = wall["금액"].map(format_krw)
         st.dataframe(wall, width="stretch", hide_index=True)
 
-    st.subheader("Asset / Debt Risk Indicators")
-    indicators = analysis["indicators"].copy()
-    indicators["Risk Score"] = indicators["Risk Score"].map(lambda value: "산출 제한" if pd.isna(value) else f"{float(value):.0f}/100")
-    st.dataframe(indicators, width="stretch", hide_index=True)
+    st.subheader("Debt & Asset Risk Components")
+    components = model["risk_components"]
+    debt_components = components[components["component"].isin(["Leverage", "Liquidity", "Interest Rate", "Refinancing", "Data Quality"])]
+    st.dataframe(debt_components, width="stretch", hide_index=True)
 
     st.subheader("Interest Expense Sensitivity")
-    sensitivity = analysis["scenario_outputs"][["Scenario", "Scenario 기준금리", "Interest expense impact", "Refinancing pressure", "Source/Basis"]].copy()
-    sensitivity["Scenario 기준금리"] = sensitivity["Scenario 기준금리"].map(lambda value: f"{float(value):.2f}%")
+    sensitivity = model["scenario_outputs"][["Scenario", "Scenario 기준금리", "Interest expense impact", "Refinancing pressure", "CFO action", "Source/Basis"]].copy()
+    sensitivity["Scenario 기준금리"] = sensitivity["Scenario 기준금리"].map(lambda value: "데이터 없음" if pd.isna(value) else f"{float(value):.2f}%")
     sensitivity["Interest expense impact"] = sensitivity["Interest expense impact"].map(format_krw)
     st.dataframe(sensitivity, width="stretch", hide_index=True)
 
-    st.info("WALE, 임차인 집중도, 자산별 NOI는 공시 parser를 먼저 시도하되, 구조화 표 검증과 고객 내부자료 확인이 필요한 항목입니다.")
+    st.subheader("Debt Note Evidence Snippets")
+    snippets = model.get("parsed_evidence_snippets", [])
+    if snippets:
+        for item in snippets[:5]:
+            st.caption(f"[OpenDART Parsed] {item.get('keyword', '')}: {item.get('snippet', '')}")
+    else:
+        st.info("담보, 금리조건, 만기 schedule 관련 공시 원문 snippet은 아직 자동 추출되지 않았습니다. 사업보고서 주석 또는 내부 treasury 자료 확인이 필요합니다.")
+
+    st.info("CFO 해석: 이 화면은 실제 투자 의견이나 신용 판단을 제공하지 않습니다. 차입 구성과 금리 민감도는 공개 API와 parser 기반 예비 진단이며, 정확한 만기표·담보·금리조건은 세부 주석 및 내부 차입 약정 검증이 필요합니다.")
     st.stop()
 
 data = load_all_data()

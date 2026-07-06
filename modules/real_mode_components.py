@@ -1,5 +1,5 @@
 """
-Real API Mode components for K-REIT CFO Copilot v11.1.
+Real API Mode components for K-REIT CFO Copilot v12.
 
 This module keeps Real API Mode conservative:
 - factual OpenDART / ECOS data
@@ -24,13 +24,13 @@ REAL_API_MODE_DISCLAIMER = (
     "가정만을 기반으로 합니다. 본 화면은 실제 기업에 대한 투자 의견, 신용 판단, 부정적 리스크 평가를 "
     "제공하지 않습니다."
 )
-V11_EXPLANATION = "v11.1에서는 공개 API, 공시 원문 parser, market/public data, macro proxy, 사용자 보완값, 데이터 미확보 항목을 구분합니다."
+V11_EXPLANATION = "v12에서는 공개 API, 공시 원문 parser, market/public data, macro proxy, 사용자 보완값, 데이터 미확보 항목을 source/confidence와 함께 구분합니다."
 V10_EXPLANATION = V11_EXPLANATION
 DATA_AVAILABILITY_EXPLANATION = (
     "공개 API로 자동화 가능한 데이터, 사용자 입력이 필요한 데이터, 고객 내부자료 또는 manual validation이 "
     "필요한 데이터를 구분합니다."
 )
-SAMPLE_MODE_NOTICE = "Sample Mode의 회사명, 수치, Risk Score, 공시 신호는 모두 fictional sample data입니다."
+SAMPLE_MODE_NOTICE = "Demo / Sample Mode의 회사명, 수치, Risk Score, 공시 신호는 모두 fictional sample data입니다."
 
 
 def _format_krw_bn(value: float, digits: int = 0) -> str:
@@ -80,9 +80,6 @@ def render_real_reit_factual_panel(real_reit: pd.Series | dict[str, Any] | None 
     note = str(get_value("notes", "")).strip()
     if note:
         st.caption(note)
-    with st.expander("개발자용 식별 정보", expanded=False):
-        st.caption(f"ticker: {str(get_value('ticker', '')).strip() or '미확보'}")
-        st.caption(f"corp_code: {str(get_value('corp_code', '')).strip() or 'OpenDART lookup'}")
 
 
 def render_opendart_disclosure_monitor(
@@ -477,7 +474,7 @@ def get_data_availability_matrix() -> pd.DataFrame:
             "API availability": "부분 가능",
             "Automation level": "Medium",
             "Manual validation required?": "Yes",
-            "Notes": "현재 v11.1은 rule-based이며 외부 LLM API를 사용하지 않습니다.",
+            "Notes": "현재 v12는 rule-based이며 외부 LLM API를 사용하지 않습니다.",
         },
     ]
     return pd.DataFrame(rows)
@@ -499,7 +496,7 @@ def render_data_availability_matrix(
     st.caption(DATA_AVAILABILITY_EXPLANATION)
     st.dataframe(matrix, width="stretch", hide_index=True)
     st.info(
-        "v11.1은 자동 수집과 공시 parser를 먼저 시도한 뒤, FFO, AFFO, WALE, 임차인 집중도, 자산별 NOI, "
+        "v12는 자동 수집과 공시 parser를 먼저 시도한 뒤, FFO, AFFO, WALE, 임차인 집중도, 자산별 NOI, "
         "세금효과처럼 고객 내부자료 검증이 필요한 항목만 manual validation으로 분리합니다."
     )
     return matrix

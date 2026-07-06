@@ -11,7 +11,7 @@ import requests
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 CACHE_DIR = BASE_DIR / "data" / "cache" / "reit_external"
-USER_AGENT = "K-REIT-CFO-Copilot/11.1 (+portfolio prototype; contact via app owner)"
+USER_AGENT = "K-REIT-CFO-Copilot/12 (+portfolio prototype; contact via app owner)"
 
 
 def _now_iso() -> str:
@@ -205,4 +205,3 @@ def collect_company_ir_data(selected_reit: Any, allow_network: bool = False) -> 
     result["dividend_links"] = [link for link in links if "배당" in link["title"]]
     result["financing_links"] = [link for link in links if any(k in link["title"] for k in ["차입", "금리", "만기"])]
     return result
-

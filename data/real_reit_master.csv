@@ -1,7 +1,7 @@
-real_reit_name,ticker,corp_code,notes
-SK리츠,395400.KS,,Real API Mode factual disclosure lookup target; no sample Risk Score assigned.
-롯데리츠,330590.KS,,Real API Mode factual disclosure lookup target; no sample Risk Score assigned.
-ESR켄달스퀘어리츠,365550.KS,,Real API Mode factual disclosure lookup target; no sample Risk Score assigned.
-신한알파리츠,293940.KS,,Real API Mode factual disclosure lookup target; no sample Risk Score assigned.
-제이알글로벌리츠,348950.KS,,Real API Mode factual disclosure lookup target; no sample Risk Score assigned.
-코람코라이프인프라리츠,357120.KS,,Real API Mode factual disclosure lookup target; no sample Risk Score assigned.
+real_reit_name,display_name,stock_code,ticker,corp_code,market,sector,sponsor,amc,listing_date,homepage_url,ir_url,dart_corp_name,notes
+SK리츠,SK리츠,395400,395400.KS,,KRX,Listed REIT,SK Group,,,,SK위탁관리부동산투자회사,Real API Mode 대상 상장 REIT입니다. OpenDART corp_code는 API 조회로 보완합니다.
+롯데리츠,롯데리츠,330590,330590.KS,,KRX,Listed REIT,Lotte Group,,,,롯데위탁관리부동산투자회사,Real API Mode 대상 상장 REIT입니다. OpenDART corp_code는 API 조회로 보완합니다.
+ESR켄달스퀘어리츠,ESR켄달스퀘어리츠,365550,365550.KS,,KRX,Listed REIT,ESR Kendall Square,,,,ESR켄달스퀘어위탁관리부동산투자회사,Real API Mode 대상 상장 REIT입니다. OpenDART corp_code는 API 조회로 보완합니다.
+신한알파리츠,신한알파리츠,293940,293940.KS,,KRX,Listed REIT,Shinhan,,,,신한알파위탁관리부동산투자회사,Real API Mode peer comparison 후보입니다. OpenDART corp_code는 API 조회로 보완합니다.
+제이알글로벌리츠,제이알글로벌리츠,348950,348950.KS,,KRX,Listed REIT,JR AMC,,,,제이알글로벌위탁관리부동산투자회사,Real API Mode peer comparison 후보입니다. OpenDART corp_code는 API 조회로 보완합니다.
+코람코라이프인프라리츠,코람코라이프인프라리츠,357120,357120.KS,,KRX,Listed REIT,KORAMCO,,,,코람코라이프인프라위탁관리부동산투자회사,Real API Mode peer comparison 후보입니다. OpenDART corp_code는 API 조회로 보완합니다.
