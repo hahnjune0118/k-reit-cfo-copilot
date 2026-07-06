@@ -7,17 +7,19 @@ import streamlit as st
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 VERSION_FILE = BASE_DIR / "VERSION.md"
+SAMPLE_MODE = "Sample Mode"
+REAL_API_MODE = "Real API Mode"
 
 
 def get_app_version() -> str:
     if not VERSION_FILE.exists():
-        return "v08.1"
+        return "v10"
 
     for line in VERSION_FILE.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if stripped.startswith("Current version:"):
             return stripped.split(":", 1)[1].strip()
-    return "v08.1"
+    return "v10"
 
 
 APP_VERSION = get_app_version()
@@ -27,6 +29,7 @@ def setup_page(page_title: str, subtitle: str | None = None) -> None:
     st.set_page_config(page_title=page_title, page_icon="KR", layout="wide")
     inject_global_css()
     render_sidebar_version()
+    render_data_mode_selector()
     render_sidebar_api_status()
     render_sidebar_disclaimer()
     st.title(page_title)
@@ -39,12 +42,41 @@ def render_sidebar_version() -> None:
     st.sidebar.caption(f"현재 버전: {APP_VERSION}")
 
 
+def render_data_mode_selector() -> str:
+    mode = st.sidebar.radio(
+        "Data Mode",
+        [SAMPLE_MODE, REAL_API_MODE],
+        index=0,
+        key="data_mode",
+        help="Sample Mode는 fictional data 기반 end-to-end demo, Real API Mode는 공개 API 기반 factual data 조회입니다.",
+    )
+    return str(mode)
+
+
+def get_data_mode() -> str:
+    return str(st.session_state.get("data_mode", SAMPLE_MODE))
+
+
+def is_real_api_mode() -> bool:
+    return get_data_mode() == REAL_API_MODE
+
+
+def is_sample_mode() -> bool:
+    return get_data_mode() == SAMPLE_MODE
+
+
 def render_sidebar_disclaimer() -> None:
     st.sidebar.markdown("---")
-    st.sidebar.caption(
-        "Disclaimer: 본 앱은 fictional sample data 기반 rule-based AX prototype입니다. "
-        "실제 기업 재무상태, 공시 내용 또는 투자판단을 나타내지 않습니다."
-    )
+    if is_real_api_mode():
+        st.sidebar.caption(
+            "Real API Mode: OpenDART/ECOS 공개 API factual data와 사용자 입력 가정만 표시합니다. "
+            "검증되지 않은 부정적 Risk Score, 투자 의견, 신용 판단은 제공하지 않습니다."
+        )
+    else:
+        st.sidebar.caption(
+            "Sample Mode: 회사명, 수치, Risk Score, 공시 신호는 모두 fictional sample data입니다. "
+            "실제 기업 재무상태, 공시 내용 또는 투자판단을 나타내지 않습니다."
+        )
 
 
 def render_sidebar_api_status() -> None:

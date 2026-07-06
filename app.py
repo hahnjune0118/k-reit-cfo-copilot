@@ -3,7 +3,74 @@ import streamlit as st
 
 from modules.data_loader import load_all_data
 from modules.risk_scoring import executive_signal_table
-from modules.ui_components import format_krw_bn, hero, setup_page, signal_card
+from modules.ui_components import format_krw_bn, hero, is_real_api_mode, setup_page, signal_card
+
+try:
+    from modules.real_data_loader import load_real_reit_master
+except Exception:
+    def load_real_reit_master():
+        import pandas as pd
+
+        return pd.DataFrame(
+            [
+                {
+                    "real_reit_name": "Real REIT fallback",
+                    "ticker": "",
+                    "corp_code": "",
+                    "notes": "real_data_loader module is unavailable.",
+                }
+            ]
+        )
+
+try:
+    import modules.real_mode_components as real_components
+except Exception:
+    real_components = None
+
+
+def _real_component(name, fallback):
+    return getattr(real_components, name, fallback) if real_components is not None else fallback
+
+
+def _fallback_real_mode_warning(*args, **kwargs):
+    st.warning(
+        "Real API Mode는 공개 API factual data와 사용자 입력 가정만 표시합니다. "
+        "투자 의견, 신용 판단, 부정적 리스크 평가는 제공하지 않습니다."
+    )
+
+
+def _fallback_select_real_reit(*args, **kwargs):
+    import pandas as pd
+
+    st.sidebar.info("Real REIT 선택 컴포넌트를 불러오지 못해 fallback 값을 사용합니다.")
+    return pd.Series({"real_reit_name": "선택 REIT", "ticker": "", "corp_code": "", "notes": ""})
+
+
+def _fallback_real_reit_factual_panel(*args, **kwargs):
+    st.info("Real REIT factual panel을 불러오지 못했습니다.")
+
+
+def _fallback_ecos_market_rate_panel(*args, **kwargs):
+    import pandas as pd
+
+    st.info("ECOS Market Rate Panel을 불러오지 못했습니다.")
+    return pd.DataFrame()
+
+
+def _fallback_real_mode_cfo_interpretation(*args, **kwargs):
+    st.info(
+        "Real API Mode 해석 컴포넌트를 불러오지 못했습니다. "
+        "공개 API 기반 factual data와 사용자 입력 기반 예비 시뮬레이션만 표시합니다."
+    )
+
+
+render_ecos_market_rate_panel = _real_component("render_ecos_market_rate_panel", _fallback_ecos_market_rate_panel)
+render_real_mode_cfo_interpretation = _real_component(
+    "render_real_mode_cfo_interpretation", _fallback_real_mode_cfo_interpretation
+)
+render_real_mode_warning = _real_component("render_real_mode_warning", _fallback_real_mode_warning)
+render_real_reit_factual_panel = _real_component("render_real_reit_factual_panel", _fallback_real_reit_factual_panel)
+select_real_reit = _real_component("select_real_reit", _fallback_select_real_reit)
 
 
 setup_page(
@@ -27,6 +94,30 @@ hero(
     "Scenario Engine, CFO briefing memo, Investor Q&A, AI Readiness 진단으로 전환하도록 설계된 "
     "rule-based consulting-style decision intelligence prototype입니다.",
 )
+
+if is_real_api_mode():
+    render_real_mode_warning()
+    real_reit = select_real_reit("Landing Real REIT 선택")
+    render_real_reit_factual_panel(real_reit)
+    rates = render_ecos_market_rate_panel()
+    render_real_mode_cfo_interpretation(real_reit, rates=rates)
+
+    st.subheader("Real REIT API Mode Coverage")
+    real_master = load_real_reit_master()
+    st.dataframe(
+        real_master.rename(
+            columns={
+                "real_reit_name": "Real REIT",
+                "ticker": "Ticker",
+                "corp_code": "OpenDART corp_code",
+                "notes": "Notes",
+            }
+        ),
+        width="stretch",
+        hide_index=True,
+    )
+    st.info("Real API Mode에서는 sample Risk Score나 sample disclosure flags를 실제 REIT에 적용하지 않습니다.")
+    st.stop()
 
 col1, col2, col3 = st.columns(3)
 with col1:

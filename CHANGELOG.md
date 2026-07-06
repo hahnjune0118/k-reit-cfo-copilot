@@ -1,5 +1,34 @@
 # CHANGELOG
 
+## v10 - Responsible Real API Insight Layer
+
+- VERSION.md의 current version을 v10으로 업데이트했습니다.
+- Streamlit sidebar version display와 fallback version을 v10으로 업데이트했습니다.
+- Real API Mode disclaimer를 강화해 OpenDART/ECOS factual data와 사용자 입력 가정만 표시한다는 점을 명확히 했습니다.
+- Sample Mode disclaimer를 강화해 회사명, 수치, Risk Score, 공시 신호가 fictional sample data임을 명확히 했습니다.
+- `modules/real_insights.py`를 추가해 OpenDART 공시 insight, ECOS 시장금리 insight, Data Availability Matrix, manual real scenario calculation을 분리했습니다.
+- OpenDART Disclosure Monitor를 확장해 공시명, 접수일, 보고서 유형, 접수번호, 원문 링크, 정기공시 여부, freshness indicator를 표시하도록 개선했습니다.
+- ECOS Market Rate Panel을 확장해 최신 금리, 기준일, 최근 추세, 데이터 출처 상태, rate shock basis를 표시하도록 개선했습니다.
+- Real API Mode manual scenario bridge를 강화해 사용자 입력 기반 LTV, interest expense, dividend buffer, refinancing pressure를 계산합니다.
+- Real API Mode CFO interpretation box는 사실 정보와 사용자 입력 hypothetical output만 설명하며 투자 의견, 신용 판단, 검증되지 않은 부정적 Risk Score를 생성하지 않도록 제한했습니다.
+- Data Quality & AI Readiness page에 Data Availability Matrix를 추가해 API 자동화 가능 영역과 manual validation 필요 영역을 구분했습니다.
+- README.md에 `v10 Real API Insight Layer`와 Data Availability Matrix를 추가했습니다.
+- OpenAI API, KRX API, Power BI, Figma, Power Automate는 v10에 추가하지 않았습니다.
+
+## v09 - Real REIT API Mode
+
+- VERSION.md의 current version을 v09로 업데이트했습니다.
+- Streamlit sidebar에 Data Mode selector를 추가했습니다: Sample Mode, Real API Mode.
+- Sample Mode는 기존 fictional sample REIT 기반 end-to-end demo를 유지합니다.
+- Real API Mode는 실제 listed REIT 이름을 사용하되 공개 API 기반 factual data만 표시하도록 분리했습니다.
+- `data/real_reit_master.csv`를 추가해 Real API Mode용 REIT master list를 구성했습니다.
+- `modules/real_data_loader.py`를 추가해 real REIT master, OpenDART disclosure data, ECOS market rate data loader를 분리했습니다.
+- `modules/real_mode_components.py`를 추가해 Real Mode warning, factual panel, OpenDART Disclosure Monitor, ECOS Market Rate Panel, manual scenario input을 재사용하도록 구성했습니다.
+- Scenario Engine에 Real Mode Scenario Input expander를 추가했습니다. 이 결과는 사용자 입력 기반 예비 시뮬레이션으로만 표시합니다.
+- Real API Mode에서는 실제 REIT에 sample Risk Score, sample disclosure flags, AI Readiness Score, Memo Generator output을 붙이지 않도록 페이지별 branch를 추가했습니다.
+- README.md에 “v09 Real REIT API Mode” section을 추가했습니다.
+- OpenAI API, KRX API, Power BI, Figma, Power Automate는 v09에 추가하지 않았습니다.
+
 ## v08.1 - Pre-submission Stabilization Hotfix
 
 - VERSION.md의 current version을 v08.1로 업데이트했습니다.

@@ -9,13 +9,84 @@ from modules.memo_generator import (
 )
 from modules.risk_scoring import attention_scores, score_assets, top_cfo_alerts
 from modules.scenario_engine import run_scenario
-from modules.ui_components import hero, setup_page
+from modules.ui_components import hero, is_real_api_mode, setup_page
+
+try:
+    import modules.real_mode_components as real_components
+except Exception:
+    real_components = None
+
+
+def _real_component(name, fallback):
+    return getattr(real_components, name, fallback) if real_components is not None else fallback
+
+
+def _fallback_real_mode_warning(*args, **kwargs):
+    st.warning("Real API Mode fallback: 공개 API factual data와 사용자 입력 가정만 표시합니다.")
+
+
+def _fallback_select_real_reit(*args, **kwargs):
+    import pandas as pd
+
+    st.sidebar.info("Real REIT 선택 컴포넌트를 불러오지 못해 fallback 값을 사용합니다.")
+    return pd.Series({"real_reit_name": "선택 REIT", "ticker": "", "corp_code": "", "notes": ""})
+
+
+def _fallback_real_reit_factual_panel(*args, **kwargs):
+    st.info("Real REIT factual panel을 불러오지 못했습니다.")
+
+
+def _fallback_empty_frame_component(message):
+    def _inner(*args, **kwargs):
+        import pandas as pd
+
+        st.info(message)
+        return pd.DataFrame()
+
+    return _inner
+
+
+def _fallback_real_mode_cfo_interpretation(*args, **kwargs):
+    st.info(
+        "Real API Mode 해석 컴포넌트를 불러오지 못했습니다. "
+        "공개 API 기반 factual data와 사용자 입력 기반 예비 시뮬레이션만 표시합니다."
+    )
+
+
+render_ecos_market_rate_panel = _real_component(
+    "render_ecos_market_rate_panel", _fallback_empty_frame_component("ECOS Market Rate Panel을 불러오지 못했습니다.")
+)
+render_opendart_disclosure_monitor = _real_component(
+    "render_opendart_disclosure_monitor", _fallback_empty_frame_component("OpenDART Disclosure Monitor를 불러오지 못했습니다.")
+)
+render_real_mode_cfo_interpretation = _real_component(
+    "render_real_mode_cfo_interpretation", _fallback_real_mode_cfo_interpretation
+)
+render_real_mode_warning = _real_component("render_real_mode_warning", _fallback_real_mode_warning)
+render_real_reit_factual_panel = _real_component("render_real_reit_factual_panel", _fallback_real_reit_factual_panel)
+select_real_reit = _real_component("select_real_reit", _fallback_select_real_reit)
 
 
 setup_page(
     "5. AI Memo & Investor Q&A",
     "정량 scenario output을 management language와 investor-facing communication으로 전환",
 )
+
+if is_real_api_mode():
+    hero(
+        "Real API Mode",
+        "실제 REIT에 대한 memo 자동 생성은 제공하지 않습니다",
+        "현재 Memo Generator는 rule-based MVP입니다. Real API Mode에서는 공개 API 기반 factual data만 보여주며, "
+        "검증되지 않은 management narrative나 Investor Q&A를 실제 회사에 대해 생성하지 않습니다.",
+    )
+    render_real_mode_warning()
+    real_reit = select_real_reit("Memo Real REIT 선택")
+    render_real_reit_factual_panel(real_reit)
+    disclosures = render_opendart_disclosure_monitor(real_reit)
+    rates = render_ecos_market_rate_panel()
+    render_real_mode_cfo_interpretation(real_reit, disclosures=disclosures, rates=rates)
+    st.info("CFO Memo와 Investor Q&A draft는 fictional Sample Mode에서 end-to-end demo로 확인할 수 있습니다.")
+    st.stop()
 
 data = load_all_data()
 reits = data["reits"]

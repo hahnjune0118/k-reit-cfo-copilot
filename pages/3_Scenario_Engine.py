@@ -11,7 +11,64 @@ from modules.scenario_engine import (
     scenario_summary_table,
     scenario_waterfall,
 )
-from modules.ui_components import format_krw_bn, format_pct, hero, setup_page
+from modules.ui_components import format_krw_bn, format_pct, hero, is_real_api_mode, setup_page
+
+try:
+    import modules.real_mode_components as real_components
+except Exception:
+    real_components = None
+
+
+def _real_component(name, fallback):
+    return getattr(real_components, name, fallback) if real_components is not None else fallback
+
+
+def _fallback_real_mode_warning(*args, **kwargs):
+    st.warning("Real API Mode fallback: 공개 API factual data와 사용자 입력 가정만 표시합니다.")
+
+
+def _fallback_select_real_reit(*args, **kwargs):
+    st.sidebar.info("Real REIT 선택 컴포넌트를 불러오지 못해 fallback 값을 사용합니다.")
+    return pd.Series({"real_reit_name": "선택 REIT", "ticker": "", "corp_code": "", "notes": ""})
+
+
+def _fallback_real_reit_factual_panel(*args, **kwargs):
+    st.info("Real REIT factual panel을 불러오지 못했습니다.")
+
+
+def _fallback_empty_frame_component(message):
+    def _inner(*args, **kwargs):
+        st.info(message)
+        return pd.DataFrame()
+
+    return _inner
+
+
+def _fallback_manual_scenario(*args, **kwargs):
+    st.info("Real Mode manual scenario 컴포넌트를 불러오지 못했습니다.")
+    return None
+
+
+def _fallback_real_mode_cfo_interpretation(*args, **kwargs):
+    st.info(
+        "Real API Mode 해석 컴포넌트를 불러오지 못했습니다. "
+        "공개 API 기반 factual data와 사용자 입력 기반 예비 시뮬레이션만 표시합니다."
+    )
+
+
+render_ecos_market_rate_panel = _real_component(
+    "render_ecos_market_rate_panel", _fallback_empty_frame_component("ECOS Market Rate Panel을 불러오지 못했습니다.")
+)
+render_opendart_disclosure_monitor = _real_component(
+    "render_opendart_disclosure_monitor", _fallback_empty_frame_component("OpenDART Disclosure Monitor를 불러오지 못했습니다.")
+)
+render_real_mode_cfo_interpretation = _real_component(
+    "render_real_mode_cfo_interpretation", _fallback_real_mode_cfo_interpretation
+)
+render_real_mode_manual_scenario = _real_component("render_real_mode_manual_scenario", _fallback_manual_scenario)
+render_real_mode_warning = _real_component("render_real_mode_warning", _fallback_real_mode_warning)
+render_real_reit_factual_panel = _real_component("render_real_reit_factual_panel", _fallback_real_reit_factual_panel)
+select_real_reit = _real_component("select_real_reit", _fallback_select_real_reit)
 
 
 def _format_summary_value(value: float, unit: str) -> str:
@@ -28,6 +85,22 @@ setup_page(
     "3. Scenario Engine",
     "금리, 임대료, 자산가치, 세금효과 변화가 배당가능성과 refinancing risk에 미치는 영향",
 )
+
+if is_real_api_mode():
+    hero(
+        "Real API Mode Scenario",
+        "공개 API factual data + 사용자 입력 기반 예비 시뮬레이션",
+        "Real API Mode에서는 asset-level WALE, LTV, tenant concentration 등 내부 데이터가 필요한 항목을 추정하지 않습니다. "
+        "아래 Scenario는 사용자가 입력한 가정을 기반으로 제한적으로 계산됩니다.",
+    )
+    render_real_mode_warning()
+    real_reit = select_real_reit("Scenario Real REIT 선택")
+    render_real_reit_factual_panel(real_reit)
+    rates = render_ecos_market_rate_panel()
+    disclosures = render_opendart_disclosure_monitor(real_reit)
+    scenario = render_real_mode_manual_scenario(real_reit)
+    render_real_mode_cfo_interpretation(real_reit, disclosures=disclosures, rates=rates, scenario=scenario)
+    st.stop()
 
 data = load_all_data()
 market_rates = load_market_rate_data(use_api=True)

@@ -6,7 +6,64 @@ import streamlit as st
 from modules.data_loader import load_all_data, reit_id_from_name, reit_options
 from modules.risk_scoring import attention_scores, debt_maturity_wall, score_assets, top_cfo_alerts
 from modules.scenario_engine import run_scenario
-from modules.ui_components import format_krw_bn, hero, setup_page
+from modules.ui_components import format_krw_bn, hero, is_real_api_mode, setup_page
+
+try:
+    import modules.real_mode_components as real_components
+except Exception:
+    real_components = None
+
+
+def _real_component(name, fallback):
+    return getattr(real_components, name, fallback) if real_components is not None else fallback
+
+
+def _fallback_real_mode_warning(*args, **kwargs):
+    st.warning("Real API Mode fallback: 공개 API factual data와 사용자 입력 가정만 표시합니다.")
+
+
+def _fallback_select_real_reit(*args, **kwargs):
+    st.sidebar.info("Real REIT 선택 컴포넌트를 불러오지 못해 fallback 값을 사용합니다.")
+    return pd.Series({"real_reit_name": "선택 REIT", "ticker": "", "corp_code": "", "notes": ""})
+
+
+def _fallback_real_reit_factual_panel(*args, **kwargs):
+    st.info("Real REIT factual panel을 불러오지 못했습니다.")
+
+
+def _fallback_empty_frame_component(message):
+    def _inner(*args, **kwargs):
+        st.info(message)
+        return pd.DataFrame()
+
+    return _inner
+
+
+def _fallback_manual_scenario(*args, **kwargs):
+    st.info("Real Mode manual scenario 컴포넌트를 불러오지 못했습니다.")
+    return None
+
+
+def _fallback_real_mode_cfo_interpretation(*args, **kwargs):
+    st.info(
+        "Real API Mode 해석 컴포넌트를 불러오지 못했습니다. "
+        "공개 API 기반 factual data와 사용자 입력 기반 예비 시뮬레이션만 표시합니다."
+    )
+
+
+render_ecos_market_rate_panel = _real_component(
+    "render_ecos_market_rate_panel", _fallback_empty_frame_component("ECOS Market Rate Panel을 불러오지 못했습니다.")
+)
+render_opendart_disclosure_monitor = _real_component(
+    "render_opendart_disclosure_monitor", _fallback_empty_frame_component("OpenDART Disclosure Monitor를 불러오지 못했습니다.")
+)
+render_real_mode_cfo_interpretation = _real_component(
+    "render_real_mode_cfo_interpretation", _fallback_real_mode_cfo_interpretation
+)
+render_real_mode_manual_scenario = _real_component("render_real_mode_manual_scenario", _fallback_manual_scenario)
+render_real_mode_warning = _real_component("render_real_mode_warning", _fallback_real_mode_warning)
+render_real_reit_factual_panel = _real_component("render_real_reit_factual_panel", _fallback_real_reit_factual_panel)
+select_real_reit = _real_component("select_real_reit", _fallback_select_real_reit)
 
 
 LABEL_COLORS = {"Low": "#007c89", "Watch": "#b76e00", "High": "#c94f4f"}
@@ -53,6 +110,23 @@ setup_page(
     "2. CFO Executive Dashboard",
     "CFO가 오늘 어디에 attention을 먼저 배분해야 하는지 보여주는 Dashboard",
 )
+
+if is_real_api_mode():
+    hero(
+        "Real API Mode",
+        "공개 API 기반 factual executive view",
+        "Real API Mode에서는 실제 상장 REIT에 sample Risk Score를 적용하지 않습니다. "
+        "OpenDART 공시와 ECOS market rate 등 공개 API 기반 사실 정보만 표시합니다.",
+    )
+    render_real_mode_warning()
+    real_reit = select_real_reit("Executive Real REIT 선택")
+    render_real_reit_factual_panel(real_reit)
+    disclosures = render_opendart_disclosure_monitor(real_reit)
+    rates = render_ecos_market_rate_panel()
+    scenario = render_real_mode_manual_scenario(real_reit)
+    render_real_mode_cfo_interpretation(real_reit, disclosures=disclosures, rates=rates, scenario=scenario)
+    st.info("CFO Alerts, Overall Risk Score, Dividend Sustainability Score는 Sample Mode 또는 사용자 입력 기반 Scenario에서만 제공합니다.")
+    st.stop()
 
 data = load_all_data()
 reits = data["reits"]

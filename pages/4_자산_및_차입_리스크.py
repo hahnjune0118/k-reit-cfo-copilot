@@ -3,10 +3,81 @@ import streamlit as st
 
 from modules.data_loader import load_all_data, reit_id_from_name, reit_options
 from modules.risk_scoring import debt_maturity_wall, refinancing_risk_table, score_assets
-from modules.ui_components import format_krw_bn, hero, setup_page
+from modules.ui_components import format_krw_bn, hero, is_real_api_mode, setup_page
+
+try:
+    import modules.real_mode_components as real_components
+except Exception:
+    real_components = None
+
+
+def _real_component(name, fallback):
+    return getattr(real_components, name, fallback) if real_components is not None else fallback
+
+
+def _fallback_real_mode_warning(*args, **kwargs):
+    st.warning("Real API Mode fallback: 공개 API factual data와 사용자 입력 가정만 표시합니다.")
+
+
+def _fallback_select_real_reit(*args, **kwargs):
+    import pandas as pd
+
+    st.sidebar.info("Real REIT 선택 컴포넌트를 불러오지 못해 fallback 값을 사용합니다.")
+    return pd.Series({"real_reit_name": "선택 REIT", "ticker": "", "corp_code": "", "notes": ""})
+
+
+def _fallback_real_reit_factual_panel(*args, **kwargs):
+    st.info("Real REIT factual panel을 불러오지 못했습니다.")
+
+
+def _fallback_empty_frame_component(message):
+    def _inner(*args, **kwargs):
+        import pandas as pd
+
+        st.info(message)
+        return pd.DataFrame()
+
+    return _inner
+
+
+def _fallback_real_mode_cfo_interpretation(*args, **kwargs):
+    st.info(
+        "Real API Mode 해석 컴포넌트를 불러오지 못했습니다. "
+        "공개 API 기반 factual data와 사용자 입력 기반 예비 시뮬레이션만 표시합니다."
+    )
+
+
+render_ecos_market_rate_panel = _real_component(
+    "render_ecos_market_rate_panel", _fallback_empty_frame_component("ECOS Market Rate Panel을 불러오지 못했습니다.")
+)
+render_opendart_disclosure_monitor = _real_component(
+    "render_opendart_disclosure_monitor", _fallback_empty_frame_component("OpenDART Disclosure Monitor를 불러오지 못했습니다.")
+)
+render_real_mode_cfo_interpretation = _real_component(
+    "render_real_mode_cfo_interpretation", _fallback_real_mode_cfo_interpretation
+)
+render_real_mode_warning = _real_component("render_real_mode_warning", _fallback_real_mode_warning)
+render_real_reit_factual_panel = _real_component("render_real_reit_factual_panel", _fallback_real_reit_factual_panel)
+select_real_reit = _real_component("select_real_reit", _fallback_select_real_reit)
 
 
 setup_page("4. 자산 및 차입 리스크", "asset-level Risk Score와 debt maturity wall 진단")
+
+if is_real_api_mode():
+    hero(
+        "Real API Mode",
+        "공개 API 기반 자산/차입 factual context",
+        "Real API Mode에서는 실제 REIT의 asset-level WALE, LTV, tenant concentration, debt schedule을 임의 추정하지 않습니다. "
+        "공개 API로 조회 가능한 공시와 market rate context만 표시합니다.",
+    )
+    render_real_mode_warning()
+    real_reit = select_real_reit("Asset Debt Real REIT 선택")
+    render_real_reit_factual_panel(real_reit)
+    disclosures = render_opendart_disclosure_monitor(real_reit)
+    rates = render_ecos_market_rate_panel()
+    render_real_mode_cfo_interpretation(real_reit, disclosures=disclosures, rates=rates)
+    st.info("Asset Risk Score와 Debt Maturity Wall은 fictional Sample Mode에서만 end-to-end demo로 제공합니다.")
+    st.stop()
 
 data = load_all_data()
 reits = data["reits"]
