@@ -1,10 +1,10 @@
 flag_id,reit_id,area,flag,severity,status,decision_risk,recommended_action
-F-001,sk_reit,Debt maturity,2026년 secured facility의 refinancing terms가 문서화되지 않음,High,Open,투자자가 refinancing guidance의 근거를 요구할 수 있음,term-sheet status bridge와 lender timetable을 준비
-F-002,sk_reit,Tenant concentration,top tenant exposure가 내부 narrative threshold를 초과,Medium,Open,배당 방어력이 sponsor-dependent로 해석될 수 있음,concentration sensitivity와 renewal probability disclosure 추가
-F-003,sk_reit,Asset capex,분산형 infrastructure 유지보수 예산이 FFO guidance와 연결되지 않음,Medium,In review,capex leakage가 배당 계획에서 누락될 수 있음,capex plan을 tax-adjusted cash-flow bridge와 연결
-F-004,lotte_reit,Retail traffic,same-store retail traffic KPI가 rent outlook과 일관되게 연결되지 않음,High,Open,rent-change scenario의 operational evidence가 약할 수 있음,자산별 traffic 및 rent sensitivity dataset 표준화
-F-005,lotte_reit,Debt maturity,2027년 bond refinancing assumption이 수작업 spreadsheet에 의존,Medium,Open,Investor Q&A의 cost-of-debt 수치가 일관되지 않을 수 있음,maturity wall과 market-rate assumption을 중앙화
-F-006,lotte_reit,Tax,property tax 및 taxable income 조정이 scenario model 밖에서 검토됨,Medium,Open,hold/sell 의사결정에서 tax leakage가 누락될 수 있음,tax adjustment line을 Scenario Engine에 통합
-F-007,esr_ks_reit,Lease rollover,urban logistics top tenant renewal status가 machine-readable하지 않음,Medium,Open,WALE confidence가 과대평가될 수 있음,renewal probability를 포함한 lease event register 작성
-F-008,esr_ks_reit,Green bond reporting,use-of-proceeds metrics가 investor reporting pack과 분리 보관됨,Low,In review,공시 작성 시간이 불필요하게 길어질 수 있음,sustainability data를 IR reporting model과 연결
-F-009,esr_ks_reit,Asset valuation,cold-chain capex assumption이 valuation sensitivity와 reconciliation되지 않음,Medium,Open,asset value shock이 capex와 yield movement를 과소 반영할 수 있음,valuation 및 capex reconciliation check 추가
+F-001,reit_a,Debt maturity,2026년 secured facility의 refinancing terms가 문서화되지 않음,High,Open,투자자가 refinancing guidance의 근거를 요구할 수 있음,term-sheet status bridge와 lender timetable을 준비
+F-002,reit_a,Tenant concentration,top tenant exposure가 내부 narrative threshold를 초과,Medium,Open,배당 방어력이 단일 anchor tenant 의존도로 해석될 수 있음,concentration sensitivity와 renewal probability disclosure 추가
+F-003,reit_a,Asset capex,분산형 infrastructure 유지보수 예산이 FFO guidance와 연결되지 않음,Medium,In review,capex leakage가 배당 계획에서 누락될 수 있음,capex plan을 tax-adjusted cash-flow bridge와 연결
+F-004,reit_b,Retail traffic,same-store retail traffic KPI가 rent outlook과 일관되게 연결되지 않음,High,Open,rent-change scenario의 operational evidence가 약할 수 있음,자산별 traffic 및 rent sensitivity dataset 표준화
+F-005,reit_b,Debt maturity,2027년 bond refinancing assumption이 수작업 spreadsheet에 의존,Medium,Open,Investor Q&A의 cost-of-debt 수치가 일관되지 않을 수 있음,maturity wall과 market-rate assumption을 중앙화
+F-006,reit_b,Tax,property tax 및 taxable income 조정이 scenario model 밖에서 검토됨,Medium,Open,hold/sell 의사결정에서 tax leakage가 누락될 수 있음,tax adjustment line을 Scenario Engine에 통합
+F-007,reit_c,Lease rollover,urban logistics top tenant renewal status가 machine-readable하지 않음,Medium,Open,WALE confidence가 과대평가될 수 있음,renewal probability를 포함한 lease event register 작성
+F-008,reit_c,Green bond reporting,use-of-proceeds metrics가 investor reporting pack과 분리 보관됨,Low,In review,공시 작성 시간이 불필요하게 길어질 수 있음,sustainability data를 IR reporting model과 연결
+F-009,reit_c,Asset valuation,cold-chain capex assumption이 valuation sensitivity와 reconciliation되지 않음,Medium,Open,asset value shock이 capex와 yield movement를 과소 반영할 수 있음,valuation 및 capex reconciliation check 추가

@@ -1,13 +1,13 @@
 asset_id,reit_id,asset_name,sector,location,asset_value_krw_bn,noi_krw_bn,occupancy_pct,wale_years,top_tenant_share_pct,lease_indexation_pct,capex_need_pct,strategic_importance
-SK-A01,sk_reit,SK Seorin Office Tower,Office,Seoul Jongno,1200,58,99.2,5.3,72,2.4,5,스폰서 기반 임대 안정성을 보여주는 anchor asset
-SK-A02,sk_reit,SK Telecom T Tower,Office,Seoul Jung,870,41,98.7,4.7,65,2.1,6,핵심 income asset이나 tenant concentration 점검 필요
-SK-A03,sk_reit,SK Energy Service Portfolio,Infrastructure,National,760,32,96.9,3.8,44,1.8,9,refinancing 및 유지보수 비용에 민감한 분산형 자산
-SK-A04,sk_reit,Pangyo Tech Campus Interest,Office,Gyeonggi Seongnam,670,25,97.4,4.4,38,2.0,7,lease rollover 모니터링이 필요한 성장형 오피스 자산
-LOT-A01,lotte_reit,Lotte Department Store Gangnam,Retail,Seoul Gangnam,780,38,98.1,6.8,70,1.5,8,배당 narrative를 지지하는 flagship retail asset
-LOT-A02,lotte_reit,Lotte Mart Portfolio,Retail,National,620,29,96.8,5.9,62,1.3,11,안정적 rent base이나 리테일 format 변화에 노출
-LOT-A03,lotte_reit,Lotte Premium Outlet Interest,Retail,Gyeonggi Icheon,540,25,97.6,6.4,58,1.4,9,traffic 의존도가 있으나 장기 lease로 방어력 보유
-LOT-A04,lotte_reit,Lotte Logistics Hub,Logistics,Gyeonggi Osan,560,27,97.2,5.2,36,2.2,6,리테일과 물류 story를 연결하는 diversification asset
-ESR-A01,esr_ks_reit,Goyang Logistics Center,Logistics,Gyeonggi Goyang,820,39,99.3,5.8,42,2.7,5,높은 occupancy를 가진 core logistics income asset
-ESR-A02,esr_ks_reit,Yongin Fulfillment Center,Logistics,Gyeonggi Yongin,760,34,99.0,5.1,48,2.5,6,e-commerce 성장성과 tenant renewal 점검이 함께 필요한 자산
-ESR-A03,esr_ks_reit,Bucheon Urban Logistics Hub,Logistics,Gyeonggi Bucheon,690,31,98.5,4.7,55,2.6,7,도심 last-mile 장점과 concentration risk가 공존
-ESR-A04,esr_ks_reit,Anseong Cold Chain Center,Logistics,Gyeonggi Anseong,830,37,99.2,6.0,39,2.8,8,capex monitoring이 필요한 specialized logistics asset
+A-A01,reit_a,Alpha Central Office Tower,Office,Seoul CBD,1200,58,99.2,5.3,72,2.4,5,장기 anchor tenant 기반 임대 안정성을 보여주는 core asset
+A-A02,reit_a,Alpha Digital Campus,Office,Seoul East,870,41,98.7,4.7,65,2.1,6,핵심 income asset이나 tenant concentration 점검 필요
+A-A03,reit_a,Alpha Service Infrastructure Portfolio,Infrastructure,National,760,32,96.9,3.8,44,1.8,9,refinancing 및 유지보수 비용에 민감한 분산형 자산
+A-A04,reit_a,Alpha Tech Park Interest,Office,Gyeonggi South,670,25,97.4,4.4,38,2.0,7,lease rollover 모니터링이 필요한 성장형 오피스 자산
+B-A01,reit_b,Beta Flagship Retail Center,Retail,Seoul South,780,38,98.1,6.8,70,1.5,8,배당 narrative를 지지하는 flagship retail asset
+B-A02,reit_b,Beta Neighborhood Mall Portfolio,Retail,National,620,29,96.8,5.9,62,1.3,11,안정적 rent base이나 리테일 format 변화에 노출
+B-A03,reit_b,Beta Outlet Complex Interest,Retail,Gyeonggi East,540,25,97.6,6.4,58,1.4,9,traffic 의존도가 있으나 장기 lease로 방어력 보유
+B-A04,reit_b,Beta Urban Logistics Hub,Logistics,Gyeonggi West,560,27,97.2,5.2,36,2.2,6,리테일과 물류 story를 연결하는 diversification asset
+C-A01,reit_c,Gamma Northern Logistics Center,Logistics,Gyeonggi North,820,39,99.3,5.8,42,2.7,5,높은 occupancy를 가진 core logistics income asset
+C-A02,reit_c,Gamma Fulfillment Center,Logistics,Gyeonggi Central,760,34,99.0,5.1,48,2.5,6,e-commerce 성장성과 tenant renewal 점검이 함께 필요한 자산
+C-A03,reit_c,Gamma Urban Last-Mile Hub,Logistics,Gyeonggi Metro,690,31,98.5,4.7,55,2.6,7,도심 last-mile 장점과 concentration risk가 공존
+C-A04,reit_c,Gamma Cold Chain Center,Logistics,Gyeonggi South,830,37,99.2,6.0,39,2.8,8,capex monitoring이 필요한 specialized logistics asset

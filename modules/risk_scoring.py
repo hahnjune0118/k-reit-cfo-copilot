@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from modules.scenario_engine import CURRENT_YEAR, classify_risk, debt_profile, run_scenario
+from modules.scenario_engine import CURRENT_YEAR, classify_risk, run_scenario
 
 
 SEVERITY_SCORE = {"Low": 1, "Medium": 2, "High": 3}
@@ -45,32 +45,41 @@ def score_assets(assets: pd.DataFrame) -> pd.DataFrame:
 def refinancing_risk_table(
     reits: pd.DataFrame,
     debt: pd.DataFrame,
+    assets: pd.DataFrame | None = None,
     current_year: int = CURRENT_YEAR,
 ) -> pd.DataFrame:
     rows = []
+    if assets is None:
+        assets = pd.DataFrame(columns=["reit_id", "noi_krw_bn", "capex_need_pct"])
+
     for _, reit in reits.iterrows():
         reit_debt = debt[debt["reit_id"] == reit["reit_id"]]
-        profile = debt_profile(reit_debt, current_year=current_year)
-        score = np.clip(
-            (profile["near_term_debt_pct"] * 0.55)
-            + (profile["floating_rate_pct"] * 0.25)
-            + (float(reit["ltv_pct"]) - 40) * 1.4
-            + max(profile["weighted_coupon_pct"] - 3.8, 0) * 8,
-            0,
-            100,
+        reit_assets = assets[assets["reit_id"] == reit["reit_id"]].copy()
+        if reit_assets.empty:
+            reit_assets = pd.DataFrame({"noi_krw_bn": [0.0], "capex_need_pct": [0.0]})
+
+        scenario = run_scenario(
+            reit,
+            reit_assets,
+            reit_debt,
+            rate_shock_bp=0,
+            rent_change_pct=0.0,
+            asset_value_change_pct=0.0,
+            tax_impact_pct=0.0,
+            current_year=current_year,
         )
         rows.append(
             {
                 "reit_id": reit["reit_id"],
                 "reit_name": reit["reit_name"],
-                "total_debt_krw_bn": profile["total_debt_krw_bn"],
-                "near_term_debt_krw_bn": profile["near_term_debt_krw_bn"],
-                "near_term_debt_pct": profile["near_term_debt_pct"],
-                "floating_rate_pct": profile["floating_rate_pct"],
-                "weighted_coupon_pct": profile["weighted_coupon_pct"],
-                "ltv_pct": float(reit["ltv_pct"]),
-                "refinancing_risk_score": float(score),
-                "risk_tier": classify_risk(score),
+                "total_debt_krw_bn": scenario["total_debt_krw_bn"],
+                "near_term_debt_krw_bn": scenario["near_term_debt_krw_bn"],
+                "near_term_debt_pct": scenario["near_term_debt_pct"],
+                "floating_rate_pct": scenario["floating_rate_pct"],
+                "weighted_coupon_pct": scenario["weighted_coupon_pct"],
+                "ltv_pct": scenario["base_ltv_pct"],
+                "refinancing_risk_score": float(scenario["refinancing_risk_score"]),
+                "risk_tier": scenario["refinancing_status"],
             }
         )
     return pd.DataFrame(rows).sort_values("refinancing_risk_score", ascending=False)
@@ -187,7 +196,7 @@ def data_quality_flags(
             "flag_type": "Manual review required",
             "status": "High" if high_flags > 0 else "Watch" if open_flags > 0 else "Low",
             "evidence": f"open disclosure flags {open_flags}, high-severity flags {high_flags}",
-            "impact": "manual review 항목이 남아 있으면 AI-generated output의 approval risk가 커집니다.",
+            "impact": "manual review 항목이 남아 있으면 rule-based output의 approval risk가 커집니다.",
             "action": "High severity flag부터 owner, target date, approval status를 부여합니다.",
         },
     ]
@@ -340,7 +349,7 @@ def executive_signal_table(
             }
         )
     scenario_df = pd.DataFrame(scenarios)
-    refi = refinancing_risk_table(reits, debt)[["reit_id", "refinancing_risk_score", "risk_tier"]]
+    refi = refinancing_risk_table(reits, debt, assets)[["reit_id", "refinancing_risk_score", "risk_tier"]]
     ready = readiness_score(readiness, flags)
     flag_summary = disclosure_flag_summary(flags)[["reit_id", "open_flags", "high_flags"]]
 

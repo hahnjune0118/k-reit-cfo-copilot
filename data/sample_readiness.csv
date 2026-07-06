@@ -1,19 +1,19 @@
 reit_id,dimension,score,interpretation,next_step
-sk_reit,Data Availability,4.2,핵심 asset debt cash-flow data가 reporting pack에 존재,portfolio와 debt fact를 단일 CFO data mart로 통합
-sk_reit,Data Consistency,3.4,metric definition은 대체로 정렬되어 있으나 refinancing assumption이 파일별로 다름,debt cost maturity rate type의 source-of-truth field 정의
-sk_reit,KPI Standardization,3.6,board KPI는 있으나 scenario 및 investor KPI와 완전히 연결되지 않음,board KPI를 IR 및 lender communication metric과 매핑
-sk_reit,Scenario Capability,3.1,interest-rate 및 asset-value sensitivity는 있으나 반자동 방식,downside scenario와 executive alert 자동화
-sk_reit,Tax-Finance Integration,2.8,tax leakage가 finance scenario 이후 별도 검토됨,tax adjustment를 cash-flow 및 dividend coverage model에 내재화
-sk_reit,AI Use Case Readiness,3.5,controlled template 기반 briefing memo와 Q&A 생성 가능,반복 investor topic에 대한 approved narrative library 구축
-lotte_reit,Data Availability,4.0,core retail portfolio data는 있으나 operating KPI가 분산,traffic rent tenant KPI를 자산 단위로 연결
-lotte_reit,Data Consistency,3.0,IR workbook과 finance workbook의 retail cash-flow assumption이 다름,rent sensitivity 및 cost pass-through definition 표준화
-lotte_reit,KPI Standardization,3.2,dividend 및 occupancy KPI는 안정적이나 retail risk metric 정의 필요,store traffic renewal lease spread KPI 정의
-lotte_reit,Scenario Capability,2.7,retail downside scenario가 여전히 workbook 중심으로 운영,rent 및 valuation shock playbook 운영화
-lotte_reit,Tax-Finance Integration,2.6,tax adjustment는 식별되지만 scenario output에 통합되지 않음,tax-adjusted cash-flow reporting을 Dashboard에 추가
-lotte_reit,AI Use Case Readiness,3.3,Investor Q&A topic이 반복되어 rule-based drafting에 적합,retail resilience 관련 reviewed answer bank 작성
-esr_ks_reit,Data Availability,4.3,asset debt leasing dataset이 비교적 완성도 높음,leasing과 valuation data를 scenario-ready format으로 통합
-esr_ks_reit,Data Consistency,3.7,대부분의 definition은 일관되나 tenant renewal status 구조화 필요,standardized lease event register 작성
-esr_ks_reit,KPI Standardization,3.8,logistics KPI는 investor-friendly하나 valuation sensitivity 연결 강화 필요,NOI yield 및 capex sensitivity field 추가
-esr_ks_reit,Scenario Capability,3.4,rate rent scenario는 성숙하지만 capex scenario는 보완 필요,multi-factor downside case 자동화
-esr_ks_reit,Tax-Finance Integration,3.0,tax treatment는 파악되어 있으나 narrative generation에 내재화되지 않음,tax-adjusted cash flow를 briefing memo logic에 반영
-esr_ks_reit,AI Use Case Readiness,3.8,structured data 기반 disclosure 및 Q&A draft 생성 가능,AI-generated management narrative governance workflow 구축
+reit_a,Data Availability,4.2,핵심 asset debt cash-flow data가 reporting pack에 존재,portfolio와 debt fact를 단일 CFO data mart로 통합
+reit_a,Data Consistency,3.4,metric definition은 대체로 정렬되어 있으나 refinancing assumption이 파일별로 다름,debt cost maturity rate type의 source-of-truth field 정의
+reit_a,KPI Standardization,3.6,board KPI는 있으나 scenario 및 investor KPI와 완전히 연결되지 않음,board KPI를 IR 및 lender communication metric과 매핑
+reit_a,Scenario Capability,3.1,interest-rate 및 asset-value sensitivity는 있으나 반자동 방식,downside scenario와 executive alert 자동화
+reit_a,Tax-Finance Integration,2.8,tax leakage가 finance scenario 이후 별도 검토됨,tax adjustment를 cash-flow 및 dividend coverage model에 내재화
+reit_a,AI Use Case Readiness,3.5,controlled template 기반 briefing memo와 Q&A 생성 가능,반복 investor topic에 대한 approved narrative library 구축
+reit_b,Data Availability,4.0,core retail portfolio data는 있으나 operating KPI가 분산,traffic rent tenant KPI를 자산 단위로 연결
+reit_b,Data Consistency,3.0,IR workbook과 finance workbook의 retail cash-flow assumption이 다름,rent sensitivity 및 cost pass-through definition 표준화
+reit_b,KPI Standardization,3.2,dividend 및 occupancy KPI는 안정적이나 retail risk metric 정의 필요,store traffic renewal lease spread KPI 정의
+reit_b,Scenario Capability,2.7,retail downside scenario가 여전히 workbook 중심으로 운영,rent 및 valuation shock playbook 운영화
+reit_b,Tax-Finance Integration,2.6,tax adjustment는 식별되지만 scenario output에 통합되지 않음,tax-adjusted cash-flow reporting을 Dashboard에 추가
+reit_b,AI Use Case Readiness,3.3,Investor Q&A topic이 반복되어 rule-based drafting에 적합,retail resilience 관련 reviewed answer bank 작성
+reit_c,Data Availability,4.3,asset debt leasing dataset이 비교적 완성도 높음,leasing과 valuation data를 scenario-ready format으로 통합
+reit_c,Data Consistency,3.7,대부분의 definition은 일관되나 tenant renewal status 구조화 필요,standardized lease event register 작성
+reit_c,KPI Standardization,3.8,logistics KPI는 investor-friendly하나 valuation sensitivity 연결 강화 필요,NOI yield 및 capex sensitivity field 추가
+reit_c,Scenario Capability,3.4,rate rent scenario는 성숙하지만 capex scenario는 보완 필요,multi-factor downside case 자동화
+reit_c,Tax-Finance Integration,3.0,tax treatment는 파악되어 있으나 narrative generation에 내재화되지 않음,tax-adjusted cash flow를 briefing memo logic에 반영
+reit_c,AI Use Case Readiness,3.8,structured data 기반 disclosure 및 Q&A draft 생성 가능,rule-based management narrative governance workflow 구축

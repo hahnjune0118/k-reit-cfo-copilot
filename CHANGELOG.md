@@ -1,5 +1,19 @@
 # CHANGELOG
 
+## v08.1 - Pre-submission Stabilization Hotfix
+
+- VERSION.md의 current version을 v08.1로 업데이트했습니다.
+- Streamlit sidebar version display가 v08.1을 표시하도록 fallback 값을 업데이트했습니다.
+- v08.1은 신규 기능 확장이 아니라 제출 전 consistency, disclaimer, reliability 중심 hotfix입니다.
+- `refinancing_risk_table()`이 `scenario_engine.run_scenario()`의 baseline refinancing risk logic을 사용하도록 refactor했습니다.
+- CFO Executive Dashboard, Scenario Engine, Asset & Debt Risk page가 동일 baseline assumption에서 같은 Refinancing Risk Score를 사용하도록 정리했습니다.
+- sample data의 실제 REIT 이름, 티커, asset name, facility name, disclosure reference를 fictional sample REIT로 교체했습니다.
+- README.md에 global disclaimer와 Known Limitations section을 추가했습니다.
+- Streamlit sidebar에 fictional sample data 및 rule-based prototype disclaimer를 추가했습니다.
+- README.md와 app landing page의 과도한 AI 표현을 rule-based AX prototype 중심으로 조정했습니다.
+- `pytest`를 requirements.txt에 추가하고 regression tests를 추가했습니다.
+- OpenAI, KRX, Power BI, Figma, Power Automate는 v08.1에 추가하지 않았습니다.
+
 ## v08 - External API Data Layer
 
 - VERSION.md의 current version을 v08로 업데이트했습니다.

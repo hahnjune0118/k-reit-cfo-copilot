@@ -38,7 +38,7 @@ hero(
     "maturity concentration, floating-rate exposure, disclosure flags와 연결합니다.",
 )
 
-refi = refinancing_risk_table(scope_reits, scope_debt)
+refi = refinancing_risk_table(scope_reits, scope_debt, scope_assets)
 total_debt = scope_debt["principal_krw_bn"].sum()
 near_term = refi["near_term_debt_krw_bn"].sum()
 avg_refi_score = refi["refinancing_risk_score"].mean()

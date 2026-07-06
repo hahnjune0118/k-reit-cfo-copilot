@@ -1,13 +1,13 @@
 debt_id,reit_id,facility_name,debt_type,lender_group,maturity_year,principal_krw_bn,coupon_pct,floating_rate_pct,secured_by,refinancing_status
-SK-D01,sk_reit,Seorin Senior Loan,Secured term loan,Domestic bank club,2026,410,4.1,55,SK Seorin Office Tower,Negotiation required
-SK-D02,sk_reit,T Tower Bond 2027,Corporate bond,Public bondholders,2027,360,4.3,20,Unsecured,Market window watch
-SK-D03,sk_reit,Infrastructure Loan,Secured term loan,Insurance lenders,2029,520,4.0,65,SK Energy Service Portfolio,Stable
-SK-D04,sk_reit,Pangyo Acquisition Facility,Secured term loan,Domestic bank club,2031,370,4.5,35,Pangyo Tech Campus Interest,Stable
-LOT-D01,lotte_reit,Gangnam Retail Loan,Secured term loan,Domestic bank club,2026,330,4.4,60,Lotte Department Store Gangnam,Negotiation required
-LOT-D02,lotte_reit,Outlet Senior Loan,Secured term loan,Insurance lenders,2028,280,4.2,45,Lotte Premium Outlet Interest,Stable
-LOT-D03,lotte_reit,Mart Portfolio Bond,Corporate bond,Public bondholders,2027,390,4.6,25,Unsecured,Market window watch
-LOT-D04,lotte_reit,Osan Logistics Loan,Secured term loan,Domestic bank club,2030,230,4.1,55,Lotte Logistics Hub,Stable
-ESR-D01,esr_ks_reit,Goyang Logistics Loan,Secured term loan,Domestic bank club,2027,360,4.0,40,Goyang Logistics Center,Market window watch
-ESR-D02,esr_ks_reit,Yongin Green Bond,Green bond,Public bondholders,2029,430,3.8,15,Unsecured,Stable
-ESR-D03,esr_ks_reit,Bucheon Senior Loan,Secured term loan,Insurance lenders,2028,330,4.1,50,Bucheon Urban Logistics Hub,Stable
-ESR-D04,esr_ks_reit,Anseong Cold Chain Facility,Secured term loan,Domestic bank club,2031,300,4.2,35,Anseong Cold Chain Center,Stable
+A-D01,reit_a,Alpha Central Senior Loan,Secured term loan,Domestic bank club,2026,410,4.1,55,Alpha Central Office Tower,Negotiation required
+A-D02,reit_a,Alpha Office Bond 2027,Corporate bond,Public bondholders,2027,360,4.3,20,Unsecured,Market window watch
+A-D03,reit_a,Alpha Infrastructure Loan,Secured term loan,Insurance lenders,2029,520,4.0,65,Alpha Service Infrastructure Portfolio,Stable
+A-D04,reit_a,Alpha Tech Park Facility,Secured term loan,Domestic bank club,2031,370,4.5,35,Alpha Tech Park Interest,Stable
+B-D01,reit_b,Beta Flagship Retail Loan,Secured term loan,Domestic bank club,2026,330,4.4,60,Beta Flagship Retail Center,Negotiation required
+B-D02,reit_b,Beta Outlet Senior Loan,Secured term loan,Insurance lenders,2028,280,4.2,45,Beta Outlet Complex Interest,Stable
+B-D03,reit_b,Beta Retail Bond 2027,Corporate bond,Public bondholders,2027,390,4.6,25,Unsecured,Market window watch
+B-D04,reit_b,Beta Logistics Loan,Secured term loan,Domestic bank club,2030,230,4.1,55,Beta Urban Logistics Hub,Stable
+C-D01,reit_c,Gamma Northern Logistics Loan,Secured term loan,Domestic bank club,2027,360,4.0,40,Gamma Northern Logistics Center,Market window watch
+C-D02,reit_c,Gamma Sustainability Bond,Green bond,Public bondholders,2029,430,3.8,15,Unsecured,Stable
+C-D03,reit_c,Gamma Last-Mile Senior Loan,Secured term loan,Insurance lenders,2028,330,4.1,50,Gamma Urban Last-Mile Hub,Stable
+C-D04,reit_c,Gamma Cold Chain Facility,Secured term loan,Domestic bank club,2031,300,4.2,35,Gamma Cold Chain Center,Stable

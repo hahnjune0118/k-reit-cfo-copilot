@@ -1,5 +1,10 @@
 # ROADMAP
 
+## v08.1 완료
+
+- 제출 전 hotfix로 fictional sample data, disclaimer, Risk Score consistency, regression tests를 정리했습니다.
+- 신규 외부 서비스 연동은 추가하지 않았습니다.
+
 ## v09 후보
 
 - OpenDART coverage 확대: 주요 공시 유형 분류, 공시 원문 링크, disclosure flag 자동 후보 생성

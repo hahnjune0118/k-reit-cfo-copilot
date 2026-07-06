@@ -8,7 +8,7 @@ from modules.ui_components import format_krw_bn, hero, setup_page, signal_card
 
 setup_page(
     "K-REIT CFO Copilot",
-    "상장 REIT CFO, AMC, IR팀을 위한 AI-powered decision intelligence",
+    "상장 REIT CFO, AMC, IR팀을 위한 rule-based AX decision support prototype",
 )
 
 data = load_all_data()
@@ -25,7 +25,7 @@ hero(
     "금리, 차입, 자산, 세금, 배당, 공시 품질 리스크를 하나의 Dashboard로 연결",
     "K-REIT CFO Copilot은 상장 리츠 CFO, AMC, IR팀이 fragmented portfolio data를 "
     "Scenario Engine, CFO briefing memo, Investor Q&A, AI Readiness 진단으로 전환하도록 설계된 "
-    "consulting-style decision intelligence platform입니다.",
+    "rule-based consulting-style decision intelligence prototype입니다.",
 )
 
 col1, col2, col3 = st.columns(3)
