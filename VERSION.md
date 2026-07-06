@@ -1,8 +1,8 @@
 # VERSION
 
-Current version: v10
+Current version: v10.1
 
-Previous version: v09
+Previous version: v10
 
 Versioning rule:
 - Every future feature release should increment sequentially from v11, v12, v13, etc.

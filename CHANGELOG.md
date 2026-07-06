@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## v10.1 - Korean UI Copy and Encoding Hotfix
+
+- Streamlit sidebar version display와 fallback version을 v10.1로 업데이트했습니다.
+- Real API Mode, ECOS 금리 데이터, CFO 해석 메모, 선택 REIT, Data Availability Matrix의 깨진 Korean UI copy를 UTF-8 한글 문구로 정리했습니다.
+- `modules/real_mode_components.py`의 중복 override와 깨진 사용자-facing 문자열을 정리하고 기존 Real API Mode component surface를 유지했습니다.
+- Data Availability Matrix의 Metric 값을 표준 목록으로 고정하는 회귀 테스트를 보강했습니다.
+- OpenAI API, KRX API, Power BI, Figma, Power Automate는 v10.1에 추가하지 않았습니다.
+
 ## v10 - Responsible Real API Insight Layer
 
 - VERSION.md의 current version을 v10으로 업데이트했습니다.

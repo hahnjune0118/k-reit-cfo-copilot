@@ -2,8 +2,9 @@
 
 **K-REIT CFO Copilot: AI-powered decision intelligence prototype for listed Korean REIT CFOs, AMCs, IR teams, and risk management teams.**
 
-현재 버전: **v10**  
-Release type: **Responsible Real API Insight Layer**
+현재 버전: **v10.1**
+
+Release type: **Korean UI copy and encoding hotfix**
 
 ## 프로젝트 개요
 
@@ -15,7 +16,7 @@ K-REIT CFO Copilot은 상장 REIT CFO, AMC, IR팀이 금리, 차입, 자산, 세
 
 Sample Mode의 회사명, 수치, Risk Score, 공시 신호, AI Readiness 결과는 모두 fictional sample data입니다. 실제 기업의 재무상태, 공시 품질, 투자위험 또는 신용판단을 나타내지 않습니다.
 
-Real API Mode는 OpenDART, ECOS 등 공개 API로 조회 가능한 factual data와 사용자가 직접 입력한 가정만 표시합니다. 검증되지 않은 부정적 Risk Score, 투자 의견, 신용 판단, 특정 회사에 대한 부정적 판단은 생성하지 않습니다. 실제 투자, 공시, 재무 의사결정에는 원문 공시, 내부 재무자료, 전문가 검토가 필요합니다.
+Real API Mode는 OpenDART·ECOS 등 공개 API로 조회 가능한 사실 정보와 사용자가 직접 입력한 가정만을 기반으로 합니다. 본 화면은 실제 기업에 대한 투자 의견, 신용 판단, 부정적 리스크 평가를 제공하지 않습니다. 실제 투자, 공시, 재무 의사결정에는 원문 공시, 내부 재무자료, 전문가 검토가 필요합니다.
 
 현재 버전은 rule-based prototype이며 외부 LLM API를 사용하지 않습니다.
 
@@ -140,6 +141,7 @@ v10은 Real API Mode를 책임 있는 real-data insight layer로 강화했습니
 
 ## Version History
 
+- **v10.1**: Korean UI copy and encoding hotfix, Real API Mode disclaimer, ECOS 금리 데이터, CFO 해석 메모, Data Availability Matrix 문구 정리
 - **v10**: responsible Real API Insight Layer, OpenDART Disclosure Monitor 강화, ECOS Market Rate Panel 강화, manual real scenario bridge, Data Availability Matrix
 - **v09**: Real API Mode, Data Mode selector, OpenDART/ECOS factual data branch, real REIT master list
 - **v08.1**: pre-submission stabilization hotfix, fictional sample data, disclaimer, regression tests

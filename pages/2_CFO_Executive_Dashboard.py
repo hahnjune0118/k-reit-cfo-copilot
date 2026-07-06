@@ -19,7 +19,11 @@ def _real_component(name, fallback):
 
 
 def _fallback_real_mode_warning(*args, **kwargs):
-    st.warning("Real API Mode fallback: 공개 API factual data와 사용자 입력 가정만 표시합니다.")
+    st.warning(
+        "Real API Mode는 OpenDART·ECOS 등 공개 API로 조회 가능한 사실 정보와 사용자가 직접 입력한 "
+        "가정만을 기반으로 합니다. 본 화면은 실제 기업에 대한 투자 의견, 신용 판단, 부정적 리스크 평가를 "
+        "제공하지 않습니다."
+    )
 
 
 def _fallback_select_real_reit(*args, **kwargs):
@@ -52,7 +56,7 @@ def _fallback_real_mode_cfo_interpretation(*args, **kwargs):
 
 
 render_ecos_market_rate_panel = _real_component(
-    "render_ecos_market_rate_panel", _fallback_empty_frame_component("ECOS Market Rate Panel을 불러오지 못했습니다.")
+    "render_ecos_market_rate_panel", _fallback_empty_frame_component("ECOS 금리 데이터가 없거나 API fallback 상태입니다.")
 )
 render_opendart_disclosure_monitor = _real_component(
     "render_opendart_disclosure_monitor", _fallback_empty_frame_component("OpenDART Disclosure Monitor를 불러오지 못했습니다.")

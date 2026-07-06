@@ -13,13 +13,13 @@ REAL_API_MODE = "Real API Mode"
 
 def get_app_version() -> str:
     if not VERSION_FILE.exists():
-        return "v10"
+        return "v10.1"
 
     for line in VERSION_FILE.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if stripped.startswith("Current version:"):
             return stripped.split(":", 1)[1].strip()
-    return "v10"
+    return "v10.1"
 
 
 APP_VERSION = get_app_version()
@@ -69,8 +69,9 @@ def render_sidebar_disclaimer() -> None:
     st.sidebar.markdown("---")
     if is_real_api_mode():
         st.sidebar.caption(
-            "Real API Mode: OpenDART/ECOS 공개 API factual data와 사용자 입력 가정만 표시합니다. "
-            "검증되지 않은 부정적 Risk Score, 투자 의견, 신용 판단은 제공하지 않습니다."
+            "Real API Mode는 OpenDART·ECOS 등 공개 API로 조회 가능한 사실 정보와 사용자가 직접 입력한 "
+            "가정만을 기반으로 합니다. 본 화면은 실제 기업에 대한 투자 의견, 신용 판단, 부정적 리스크 평가를 "
+            "제공하지 않습니다."
         )
     else:
         st.sidebar.caption(

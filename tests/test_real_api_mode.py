@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 
 from modules.real_data_loader import load_real_disclosure_data, load_real_market_rate_data, load_real_reit_master
 from modules.real_mode_components import (
@@ -69,7 +70,7 @@ def test_real_mode_data_availability_imports_and_signature() -> None:
 
 def test_real_mode_components_data_availability_matrix_required_metrics() -> None:
     matrix = get_data_availability_matrix()
-    required_metrics = {
+    required_metrics = [
         "회사명 / ticker",
         "OpenDART 공시 목록",
         "최근 정기공시",
@@ -82,12 +83,31 @@ def test_real_mode_components_data_availability_matrix_required_metrics() -> Non
         "차입 만기 구조",
         "세금효과",
         "Investor Q&A",
-    }
+    ]
 
-    assert required_metrics.issubset(set(matrix["Metric"]))
+    assert matrix["Metric"].tolist() == required_metrics
     assert {"Metric", "Source", "API availability", "Automation level", "Manual validation required?", "Notes"}.issubset(
         matrix.columns
     )
+
+
+def test_korean_ui_source_does_not_contain_repeated_question_mark_corruption() -> None:
+    roots = [Path("app.py"), Path("pages"), Path("modules"), Path("README.md"), Path("CHANGELOG.md"), Path("VERSION.md")]
+    patterns = ["?" * length for length in (2, 3, 4)]
+    offenders: list[str] = []
+
+    for root in roots:
+        files = [root] if root.is_file() else list(root.rglob("*"))
+        for file in files:
+            if file.suffix not in {".py", ".md"}:
+                continue
+            if "__pycache__" in file.parts:
+                continue
+            text = file.read_text(encoding="utf-8")
+            if any(pattern in text for pattern in patterns):
+                offenders.append(str(file))
+
+    assert offenders == []
 
 
 def test_v10_data_availability_matrix_identifies_manual_validation_items() -> None:
