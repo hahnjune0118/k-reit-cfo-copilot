@@ -1,5 +1,36 @@
 # CHANGELOG
 
+## v11.1 - Automated Real Data Collection Layer
+
+- VERSION.md의 current version을 v11.1로 업데이트했습니다.
+- `modules/real_data_pipeline.py`를 추가해 Real API Mode의 automated real data bundle을 구성했습니다.
+- OpenDART 재무제표 API 수집 로직을 추가하고 자산총계, 부채총계, 자본총계, 영업수익, 영업이익, 당기순이익, 현금및현금성자산, 차입금, 사채, 금융비용 계정 매핑을 구현했습니다.
+- OpenDART 최근 공시 목록과 최신 정기공시 원문 parser를 추가해 REIT-specific keyword, evidence snippet, FFO/AFFO/WALE/임차인 집중도/자산별 NOI 후보를 수집하도록 했습니다.
+- `modules/reit_external_scrapers.py`를 추가해 KAREIT/리츠협회 및 company IR 자료 수집 레이어를 분리했습니다. 기본 실행에서는 실패해도 앱을 중단하지 않습니다.
+- KRX/public market data 수집 시도를 추가했습니다. `pykrx`가 있으면 우선 사용하고, 없으면 public market data fallback을 캐시 기반으로 시도합니다.
+- ECOS와 local macro assumption을 결합한 credit spread proxy, treasury yield proxy, corporate bond yield proxy, refinancing rate assumption 함수를 추가했습니다.
+- Real API Mode metric은 `value`, `unit`, `source`, `confidence`, `as_of`, `note`를 포함하도록 표준화했습니다.
+- Real API Risk Score는 최소 4개 category가 확보될 때만 계산하고, 그 전에는 partial indicators와 source/confidence를 표시합니다.
+- 차입 만기 구조가 직접 파싱되지 않는 경우 단기차입금 또는 유동부채 기반 proxy maturity wall을 먼저 표시하도록 했습니다.
+- CFO Dashboard, Scenario Engine, Asset & Debt Risk, AI Memo, Data Quality page의 Real Mode 문구를 manual-input-first가 아니라 automated collection-first 관점으로 조정했습니다.
+- Data Quality page에 Real Data Pipeline source log, warnings, missing metrics를 추가했습니다.
+- v11.1 regression tests를 추가했습니다: metric wrapper, account mapper, structured bundle fallback, credit spread proxy, risk score threshold, debt maturity wall proxy, sample value leakage 방지.
+- OpenAI API, Power BI, Figma, Power Automate는 v11.1에 추가하지 않았습니다.
+
+## v11 - Real API Mode Analysis Parity & UI Simplification
+
+- VERSION.md의 current version을 v11로 업데이트했습니다.
+- 사용자-facing 금액 표기를 Korean currency unit인 조 / 억 / 만 원으로 통일했습니다.
+- Sidebar와 dashboard module label을 0. App부터 6. 데이터 품질 · AI Readiness까지 일관되게 indexing했습니다.
+- Real REIT selector를 Data Mode 바로 아래로 이동하고 회사명만 표시하도록 정리했습니다.
+- ticker, stock code, corp_code는 기본 UI에서 숨기고 개발자용 식별 정보 expander에만 표시하도록 변경했습니다.
+- ECOS 금리 화면을 기준금리, 최근 기준일, 최근 방향성, Scenario 기준금리 중심으로 단순화했습니다.
+- `data/macro_assumptions.csv`와 `modules/macro_assumptions.py`를 추가해 BOK/ECOS actual rate, KDI/IMF/OECD-style outlook assumption, credit/refinancing spread assumption을 관리합니다.
+- `modules/real_mode_analytics.py`를 추가해 Real API Mode risk indicators, Risk Score 산출 제한, CFO alerts, debt maturity wall, scenario outputs, data confidence report를 생성합니다.
+- CFO Dashboard에서 raw OpenDART/ECOS panels와 Real API Mode Coverage section을 제거하고 CFO-useful output 중심으로 재구성했습니다.
+- Real API Mode에서 unavailable metrics는 데이터 미확보, 사용자 입력 필요, manual validation 필요로 표시하며 fictional sample 값을 실제 REIT risk metric으로 사용하지 않습니다.
+- OpenAI API, KRX API, Power BI, Figma, Power Automate는 v11에 추가하지 않았습니다.
+
 ## v10.1 - Korean UI Copy and Encoding Hotfix
 
 - Streamlit sidebar version display와 fallback version을 v10.1로 업데이트했습니다.

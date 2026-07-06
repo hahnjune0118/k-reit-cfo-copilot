@@ -1,9 +1,11 @@
 import plotly.express as px
+import pandas as pd
 import streamlit as st
 
 from modules.data_loader import load_all_data, reit_id_from_name, reit_options
+from modules.real_mode_analytics import build_real_mode_analysis
 from modules.risk_scoring import debt_maturity_wall, refinancing_risk_table, score_assets
-from modules.ui_components import format_krw_bn, hero, is_real_api_mode, setup_page
+from modules.ui_components import format_krw, format_krw_bn, get_real_mode_user_inputs, hero, is_real_api_mode, setup_page
 
 try:
     import modules.real_mode_components as real_components
@@ -69,18 +71,46 @@ setup_page("4. 자산 및 차입 리스크", "asset-level Risk Score와 debt mat
 
 if is_real_api_mode():
     hero(
-        "Real API Mode",
-        "공개 API 기반 자산/차입 factual context",
-        "Real API Mode에서는 실제 REIT의 asset-level WALE, LTV, tenant concentration, debt schedule을 임의 추정하지 않습니다. "
-        "공개 API로 조회 가능한 공시와 market rate context만 표시합니다.",
+        "Real API Mode Asset & Debt Risk",
+        "차입 만기, 금리 민감도, refinancing pressure를 근거 수준별로 표시",
+        "OpenDART 재무제표, 공시 원문 parser, market/public data를 먼저 시도하고, 자동 확보되지 않는 debt schedule과 asset-level NOI만 검증 대상으로 분리합니다.",
     )
-    render_real_mode_warning()
-    real_reit = select_real_reit("Asset Debt Real REIT 선택")
+    real_reit = select_real_reit("Real REIT 선택")
+    analysis = build_real_mode_analysis(real_reit, get_real_mode_user_inputs())
+    metrics = analysis["metrics"]
+    score = analysis["score"]
+
     render_real_reit_factual_panel(real_reit)
-    disclosures = render_opendart_disclosure_monitor(real_reit)
-    rates = render_ecos_market_rate_panel()
-    render_real_mode_cfo_interpretation(real_reit, disclosures=disclosures, rates=rates)
-    st.info("Asset Risk Score와 Debt Maturity Wall은 fictional Sample Mode에서만 end-to-end demo로 제공합니다.")
+    cols = st.columns(4)
+    cols[0].metric("총차입금", format_krw(metrics.get("total_debt_krw")))
+    cols[1].metric("LTV", "데이터 없음" if metrics.get("ltv_pct") is None else f"{float(metrics['ltv_pct']):.1f}%")
+    cols[2].metric("Risk Score", score["risk_score_display"], score["risk_label"])
+    cols[3].metric("Data confidence", score["confidence_level"])
+
+    st.subheader("Debt Maturity Wall")
+    wall = analysis["debt_maturity_wall"].copy()
+    if wall.empty:
+        st.info(wall.attrs.get("status_message", "자동 수집을 시도했으나 차입 만기 구조가 미확보되었습니다."))
+    else:
+        chart_wall = wall.copy()
+        fig = px.bar(chart_wall, x="구간", y="금액", color="Status", labels={"금액": "금액"})
+        fig.update_layout(height=330, margin=dict(l=10, r=10, t=20, b=10))
+        st.plotly_chart(fig, width="stretch")
+        wall["금액"] = wall["금액"].map(format_krw)
+        st.dataframe(wall, width="stretch", hide_index=True)
+
+    st.subheader("Asset / Debt Risk Indicators")
+    indicators = analysis["indicators"].copy()
+    indicators["Risk Score"] = indicators["Risk Score"].map(lambda value: "산출 제한" if pd.isna(value) else f"{float(value):.0f}/100")
+    st.dataframe(indicators, width="stretch", hide_index=True)
+
+    st.subheader("Interest Expense Sensitivity")
+    sensitivity = analysis["scenario_outputs"][["Scenario", "Scenario 기준금리", "Interest expense impact", "Refinancing pressure", "Source/Basis"]].copy()
+    sensitivity["Scenario 기준금리"] = sensitivity["Scenario 기준금리"].map(lambda value: f"{float(value):.2f}%")
+    sensitivity["Interest expense impact"] = sensitivity["Interest expense impact"].map(format_krw)
+    st.dataframe(sensitivity, width="stretch", hide_index=True)
+
+    st.info("WALE, 임차인 집중도, 자산별 NOI는 공시 parser를 먼저 시도하되, 구조화 표 검증과 고객 내부자료 확인이 필요한 항목입니다.")
     st.stop()
 
 data = load_all_data()
@@ -136,7 +166,8 @@ with left:
         color="reit_name",
         barmode="stack",
         color_discrete_sequence=["#263b5e", "#007c89", "#b76e00", "#c94f4f"],
-        labels={"maturity_year": "Maturity year", "principal_krw_bn": "Principal (KRW bn)", "reit_name": "REIT"},
+        labels={"maturity_year": "Maturity year", "principal_krw_bn": "Principal", "reit_name": "REIT"},
+        text=wall["principal_krw_bn"].map(format_krw_bn),
     )
     fig.update_layout(height=400, margin=dict(l=10, r=10, t=20, b=10))
     st.plotly_chart(fig, width="stretch")
@@ -170,16 +201,26 @@ with right:
     )
 
 asset_scores = score_assets(scope_assets).merge(reits[["reit_id", "reit_name"]], on="reit_id", how="left")
+asset_display = asset_scores.copy()
+asset_display["asset_value_display"] = asset_display["asset_value_krw_bn"].map(format_krw_bn)
 
 st.subheader("Asset Risk Ranking")
 asset_chart = px.scatter(
-    asset_scores,
+    asset_display,
     x="wale_years",
     y="asset_risk_score",
     size="asset_value_krw_bn",
     color="risk_tier",
     hover_name="asset_name",
-    hover_data=["reit_name", "sector", "occupancy_pct", "top_tenant_share_pct", "capex_need_pct"],
+    hover_data={
+        "reit_name": True,
+        "sector": True,
+        "asset_value_display": True,
+        "asset_value_krw_bn": False,
+        "occupancy_pct": True,
+        "top_tenant_share_pct": True,
+        "capex_need_pct": True,
+    },
     color_discrete_map={"High": "#c94f4f", "Medium": "#b76e00", "Low": "#007c89"},
     labels={"wale_years": "WALE (years)", "asset_risk_score": "Asset Risk Score"},
 )
@@ -187,13 +228,13 @@ asset_chart.update_layout(height=420, margin=dict(l=10, r=10, t=20, b=10))
 st.plotly_chart(asset_chart, width="stretch")
 
 st.dataframe(
-    asset_scores[
+    asset_display[
         [
             "reit_name",
             "asset_name",
             "sector",
             "location",
-            "asset_value_krw_bn",
+            "asset_value_display",
             "occupancy_pct",
             "wale_years",
             "top_tenant_share_pct",
@@ -206,7 +247,7 @@ st.dataframe(
         columns={
             "reit_name": "REIT",
             "asset_name": "Asset",
-            "asset_value_krw_bn": "Value KRW bn",
+            "asset_value_display": "자산가치",
             "occupancy_pct": "Occupancy %",
             "wale_years": "WALE",
             "top_tenant_share_pct": "Top tenant %",

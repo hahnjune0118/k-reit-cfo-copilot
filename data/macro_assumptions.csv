@@ -1,0 +1,11 @@
+source,metric,date,value,unit,scenario,note,is_actual,is_forecast
+BOK/ECOS,BOK base rate,2026-07-01,3.50,%,base,ECOS actual rate if API is unavailable this row is local fallback,true,false
+BOK/ECOS,government bond yield proxy,2026-07-01,3.65,%,base,국고채 금리 proxy; 수동 관리 fallback,false,false
+Market proxy,credit spread proxy,2026-07-01,1.15,%,base,REIT refinancing credit spread proxy; 수동 관리 가정,false,false
+Market proxy,REIT refinancing spread proxy,2026-07-01,1.35,%,base,Refinancing spread assumption for listed REIT debt,false,false
+Model assumption,base case refinancing rate,2026-07-01,4.85,%,base,BOK base rate plus refinancing spread; 수동 관리 가정,false,false
+KDI forecast,base rate outlook,2026-12-31,3.25,%,downside,전망치 기반 가정; live API 아님,false,true
+IMF forecast,base rate outlook,2026-12-31,3.50,%,base,전망치 기반 가정; live API 아님,false,true
+OECD forecast,base rate outlook,2026-12-31,3.90,%,upside,전망치 기반 가정; live API 아님,false,true
+Model assumption,downside rate scenario,2026-12-31,4.10,%,downside,금리 상승 및 spread 확대 가정,false,true
+Model assumption,upside rate scenario,2026-12-31,3.10,%,upside,금리 하락 및 spread 완화 가정,false,true

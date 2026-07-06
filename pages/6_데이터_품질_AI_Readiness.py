@@ -2,13 +2,14 @@ import plotly.express as px
 import streamlit as st
 
 from modules.data_loader import load_all_data, load_disclosure_data, load_market_rate_data, reit_id_from_name, reit_options
+from modules.real_mode_analytics import build_real_mode_analysis
 from modules.risk_scoring import (
     data_quality_flags,
     readiness_roadmap,
     readiness_score,
     weighted_readiness_score,
 )
-from modules.ui_components import hero, is_real_api_mode, setup_page, signal_card
+from modules.ui_components import get_real_mode_user_inputs, hero, is_real_api_mode, setup_page, signal_card
 
 try:
     import modules.real_mode_components as real_components
@@ -74,16 +75,17 @@ def _fallback_data_availability_matrix(*args, **kwargs):
             {"Metric": "OpenDART 공시 목록", "Source": "OpenDART", "API availability": "가능", "Automation level": "High", "Manual validation required?": "No", "Notes": "공시 목록 조회 가능"},
             {"Metric": "최근 정기공시", "Source": "OpenDART", "API availability": "가능", "Automation level": "High", "Manual validation required?": "Low", "Notes": "사업보고서·반기보고서·분기보고서 확인"},
             {"Metric": "기준금리 / 시장금리", "Source": "ECOS", "API availability": "가능", "Automation level": "High", "Manual validation required?": "No", "Notes": "Scenario Engine 금리 가정"},
+            {"Metric": "주가 / 시가총액", "Source": "KRX / external market data", "API availability": "부분 가능", "Automation level": "Medium", "Manual validation required?": "Low", "Notes": "KRX 연동은 roadmap 항목"},
             {"Metric": "FFO / AFFO", "Source": "사업보고서 / IR / 내부자료", "API availability": "제한적", "Automation level": "Low", "Manual validation required?": "Yes", "Notes": "REIT별 산식 검증 필요"},
             {"Metric": "WALE", "Source": "사업보고서 주석 / 내부자료", "API availability": "제한적", "Automation level": "Low", "Manual validation required?": "Yes", "Notes": "자산별 임대차 만기 확인 필요"},
             {"Metric": "임차인 집중도", "Source": "사업보고서 주석 / 내부자료", "API availability": "제한적", "Automation level": "Low", "Manual validation required?": "Yes", "Notes": "주요 임차인 및 비중 확인 필요"},
             {"Metric": "자산별 NOI", "Source": "사업보고서 / 내부자료", "API availability": "제한적", "Automation level": "Low", "Manual validation required?": "Yes", "Notes": "자산별 수익·비용 배분 확인 필요"},
             {"Metric": "차입 만기 구조", "Source": "사업보고서 주석 / 차입 약정", "API availability": "부분 가능", "Automation level": "Medium", "Manual validation required?": "Yes", "Notes": "공시 주석 파싱 및 검증 필요"},
             {"Metric": "세금효과", "Source": "세법 검토 / 내부 거래자료", "API availability": "불가", "Automation level": "Low", "Manual validation required?": "Yes", "Notes": "별도 세무 검토 필요"},
-            {"Metric": "Investor Q&A", "Source": "공시 / IR / 사용자 입력", "API availability": "부분 가능", "Automation level": "Medium", "Manual validation required?": "Yes", "Notes": "현재 v10은 rule-based"},
+            {"Metric": "Investor Q&A", "Source": "공시 / IR / 사용자 입력", "API availability": "부분 가능", "Automation level": "Medium", "Manual validation required?": "Yes", "Notes": "현재 v11은 rule-based"},
         ]
     )
-    st.dataframe(fallback, use_container_width=True)
+    st.dataframe(fallback, width="stretch")
     return fallback
 
 
@@ -101,27 +103,55 @@ select_real_reit = _real_component("select_real_reit", _fallback_select_real_rei
 
 
 setup_page(
-    "6. 데이터 품질 및 AI Readiness",
+    "6. 데이터 품질 · AI Readiness",
     "AX consulting diagnostic: AI를 적용하기 전에 데이터 기반과 프로세스 성숙도를 진단합니다.",
 )
 
 if is_real_api_mode():
     hero(
-        "Real API Mode",
-        "External Data Connection diagnostic",
-        "Real API Mode에서는 공개 API 연결 상태와 factual data freshness를 확인합니다. "
-        "AI Readiness Score는 실제 고객 내부 데이터와 인터뷰 없이 산정하지 않습니다.",
+        "Real API Mode Data Quality",
+        "자동 수집 상태, parser 결과, source confidence, manual validation 필요 영역을 구분",
+        "Real API Mode는 OpenDART 재무제표, 공시 원문 parser, ECOS macro data, market/public data, 외부 리츠/IR 자료 수집 시도를 분리해 AX readiness를 진단합니다.",
     )
-    render_real_mode_warning()
-    real_reit = select_real_reit("Readiness Real REIT 선택")
+    real_reit = select_real_reit("Real REIT 선택")
+    analysis = build_real_mode_analysis(real_reit, get_real_mode_user_inputs())
+    public_data = analysis["public_data"]
+    score = analysis["score"]
+
     render_real_reit_factual_panel(real_reit)
-    disclosures = render_opendart_disclosure_monitor(real_reit)
-    rates = render_ecos_market_rate_panel()
-    render_real_mode_cfo_interpretation(real_reit, disclosures=disclosures, rates=rates)
+
+    cols = st.columns(4)
+    cols[0].metric("Data confidence", score["confidence_level"])
+    cols[1].metric("Risk Score", score["risk_score_display"])
+    cols[2].metric("OpenDART", "Fallback" if public_data["disclosures"].attrs.get("is_fallback", True) else "Connected")
+    cols[3].metric("ECOS", "Fallback" if public_data["market_rates"].attrs.get("is_fallback", True) else "Connected")
+
+    st.subheader("데이터 확보 상태")
+    st.dataframe(analysis["confidence_report"], width="stretch", hide_index=True)
+
+    bundle = public_data["real_data_bundle"]
+    with st.expander("Real Data Pipeline source log", expanded=False):
+        st.dataframe(bundle.get("data_sources", []), width="stretch", hide_index=True)
+        missing = bundle.get("missing_metrics", [])
+        if missing:
+            st.caption("자동 수집 시도 후 미확보 metric")
+            st.write(", ".join(missing))
+        warnings = [warning for warning in bundle.get("warnings", []) if warning]
+        if warnings:
+            st.caption("수집 / parser warnings")
+            st.write(warnings[:10])
+
     render_data_availability_matrix()
+
+    st.subheader("Macro / Market Assumption")
+    render_ecos_market_rate_panel(public_data["market_rates"])
+
+    with st.expander("OpenDART 공시 원문 조회 결과", expanded=False):
+        render_opendart_disclosure_monitor(real_reit, disclosures=public_data["disclosures"])
+
     st.subheader("AX Readiness 관점")
     st.info(
-        "OpenDART와 ECOS 연결은 데이터 자동 수집, 데이터 최신성, 반복 업무 감소, 시나리오 분석 신뢰성 향상에 기여합니다. "
+        "OpenDART, ECOS, market/public data 연결은 데이터 자동 수집, 데이터 최신성, 반복 업무 감소, 시나리오 분석 신뢰성 향상에 기여합니다. "
         "다만 실제 AI Readiness Score는 client internal data, KPI dictionary, approval workflow 확인 후 calibration해야 합니다."
     )
     st.stop()

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from modules.ui_components import format_krw_bn
+
 
 FOCUS_LABELS = {
     "dividend": "배당 안정성",
@@ -25,7 +27,7 @@ def _fmt(value: float, digits: int = 1) -> str:
 
 
 def _krw(value: float, digits: int = 1) -> str:
-    return f"KRW {_fmt(value, digits)}bn"
+    return format_krw_bn(value, digits)
 
 
 def _top_asset(asset_scores: pd.DataFrame) -> pd.Series | None:

@@ -4,9 +4,10 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from modules.data_loader import load_all_data, reit_id_from_name, reit_options
+from modules.real_mode_analytics import build_real_mode_analysis
 from modules.risk_scoring import attention_scores, debt_maturity_wall, score_assets, top_cfo_alerts
 from modules.scenario_engine import run_scenario
-from modules.ui_components import format_krw_bn, hero, is_real_api_mode, setup_page
+from modules.ui_components import format_krw, format_krw_bn, get_real_mode_user_inputs, hero, is_real_api_mode, setup_page
 
 try:
     import modules.real_mode_components as real_components
@@ -117,19 +118,62 @@ setup_page(
 
 if is_real_api_mode():
     hero(
-        "Real API Mode",
-        "공개 API 기반 factual executive view",
-        "Real API Mode에서는 실제 상장 REIT에 sample Risk Score를 적용하지 않습니다. "
-        "OpenDART 공시와 ECOS market rate 등 공개 API 기반 사실 정보만 표시합니다.",
+        "Real API Mode CFO Dashboard",
+        "OpenDART·ECOS·market/public data 기반 CFO attention view",
+        "실제 상장 REIT에는 sample 수치를 적용하지 않습니다. 자동 수집과 parser를 먼저 시도하고, 근거가 부족한 항목만 manual validation 대상으로 표시합니다.",
     )
-    render_real_mode_warning()
-    real_reit = select_real_reit("Executive Real REIT 선택")
+    real_reit = select_real_reit("Real REIT 선택")
+    analysis = build_real_mode_analysis(real_reit, get_real_mode_user_inputs())
+    metrics = analysis["metrics"]
+    score = analysis["score"]
+
     render_real_reit_factual_panel(real_reit)
-    disclosures = render_opendart_disclosure_monitor(real_reit)
-    rates = render_ecos_market_rate_panel()
-    scenario = render_real_mode_manual_scenario(real_reit)
-    render_real_mode_cfo_interpretation(real_reit, disclosures=disclosures, rates=rates, scenario=scenario)
-    st.info("CFO Alerts, Overall Risk Score, Dividend Sustainability Score는 Sample Mode 또는 사용자 입력 기반 Scenario에서만 제공합니다.")
+
+    top_cols = st.columns(4)
+    top_cols[0].metric("Risk Score", score["risk_score_display"], score["risk_label"])
+    top_cols[1].metric("Data confidence", score["confidence_level"])
+    top_cols[2].metric("Refinancing pressure", score["risk_label"])
+    top_cols[3].metric("최근 정기공시", str(metrics.get("latest_report_date", "조회 불가")))
+
+    key_cols = st.columns(4)
+    key_cols[0].metric("총자산", format_krw(metrics.get("total_assets_krw")))
+    key_cols[1].metric("총차입금", format_krw(metrics.get("total_debt_krw")))
+    key_cols[2].metric("LTV", "데이터 없음" if metrics.get("ltv_pct") is None else f"{float(metrics['ltv_pct']):.1f}%")
+    key_cols[3].metric("Dividend buffer", format_krw(metrics.get("dividend_buffer_krw")))
+
+    with st.expander("Key metric source / confidence", expanded=False):
+        source_rows = analysis["confidence_report"].head(12)
+        st.dataframe(source_rows, width="stretch", hide_index=True)
+
+    st.subheader("Risk Indicators")
+    indicator_display = analysis["indicators"].copy()
+    indicator_display["Risk Score"] = indicator_display["Risk Score"].map(
+        lambda value: "산출 제한" if pd.isna(value) else f"{float(value):.0f}/100"
+    )
+    st.dataframe(indicator_display, width="stretch", hide_index=True)
+
+    st.subheader("Top CFO Alerts")
+    st.dataframe(analysis["alerts"], width="stretch", hide_index=True)
+
+    left, right = st.columns([1.05, 1])
+    with left:
+        st.subheader("Debt Maturity Wall Summary")
+        wall = analysis["debt_maturity_wall"].copy()
+        if wall.empty:
+            st.info(wall.attrs.get("status_message", "자동 수집을 시도했으나 차입 만기 구조가 미확보되었습니다."))
+        else:
+            wall["금액"] = wall["금액"].map(format_krw)
+            st.dataframe(wall, width="stretch", hide_index=True)
+
+    with right:
+        st.subheader("Interest Rate Sensitivity")
+        scenario_display = analysis["scenario_outputs"][["Scenario", "Scenario 기준금리", "Interest expense impact", "Dividend buffer", "Refinancing pressure"]].copy()
+        scenario_display["Scenario 기준금리"] = scenario_display["Scenario 기준금리"].map(lambda value: f"{float(value):.2f}%")
+        scenario_display["Interest expense impact"] = scenario_display["Interest expense impact"].map(format_krw)
+        scenario_display["Dividend buffer"] = scenario_display["Dividend buffer"].map(format_krw)
+        st.dataframe(scenario_display, width="stretch", hide_index=True)
+
+    st.caption(f"Most recent disclosure: {metrics.get('latest_disclosure', '조회 불가')}")
     st.stop()
 
 data = load_all_data()
@@ -223,7 +267,7 @@ with right:
             name="Dividend buffer",
             marker_color="#007c89",
             yaxis="y",
-            text=dividend_scenarios["Dividend buffer"].round(1),
+            text=dividend_scenarios["Dividend buffer"].map(format_krw_bn),
             textposition="outside",
         )
     )
@@ -240,7 +284,7 @@ with right:
     div_fig.update_layout(
         height=420,
         margin=dict(l=10, r=10, t=20, b=10),
-        yaxis=dict(title="Dividend buffer (KRW bn)"),
+        yaxis=dict(title="Dividend buffer"),
         yaxis2=dict(title="Coverage (x)", overlaying="y", side="right", range=[0, max(1.4, dividend_scenarios["Dividend coverage"].max() + 0.1)]),
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
     )
@@ -273,11 +317,11 @@ with bottom_left:
         x="maturity_year",
         y="principal_krw_bn",
         color_discrete_sequence=["#263b5e"],
-        labels={"maturity_year": "Maturity year", "principal_krw_bn": "Principal (KRW bn)"},
-        text="principal_krw_bn",
+        labels={"maturity_year": "Maturity year", "principal_krw_bn": "Principal"},
+        text=wall["principal_krw_bn"].map(format_krw_bn),
     )
     fig.update_layout(height=330, margin=dict(l=10, r=10, t=20, b=10))
-    fig.update_traces(texttemplate="%{text:.0f}", textposition="outside", cliponaxis=False)
+    fig.update_traces(textposition="outside", cliponaxis=False)
     st.plotly_chart(fig, width="stretch")
 
 with bottom_right:

@@ -7,9 +7,10 @@ from modules.memo_generator import (
     generate_investor_qa,
     markdown_to_plain_text,
 )
+from modules.real_mode_analytics import build_real_mode_analysis
 from modules.risk_scoring import attention_scores, score_assets, top_cfo_alerts
 from modules.scenario_engine import run_scenario
-from modules.ui_components import hero, is_real_api_mode, setup_page
+from modules.ui_components import format_krw, get_real_mode_user_inputs, hero, is_real_api_mode, setup_page
 
 try:
     import modules.real_mode_components as real_components
@@ -78,18 +79,95 @@ setup_page(
 
 if is_real_api_mode():
     hero(
-        "Real API Mode",
-        "실제 REIT에 대한 memo 자동 생성은 제공하지 않습니다",
-        "현재 Memo Generator는 rule-based MVP입니다. Real API Mode에서는 공개 API 기반 factual data만 보여주며, "
-        "검증되지 않은 management narrative나 Investor Q&A를 실제 회사에 대해 생성하지 않습니다.",
+        "Real API Mode Memo",
+        "공개 데이터와 입력 가정의 한계를 명시하는 CFO communication draft",
+        "투자 의견이나 신용 판단은 생성하지 않고, 자동 수집된 근거와 parser/proxy 한계, manual validation 필요 항목을 보수적으로 정리합니다.",
     )
-    render_real_mode_warning()
-    real_reit = select_real_reit("Memo Real REIT 선택")
+    real_reit = select_real_reit("Real REIT 선택")
+    focus = st.sidebar.selectbox(
+        "Memo focus",
+        list(FOCUS_LABELS.keys()),
+        format_func=lambda key: FOCUS_LABELS[key],
+    )
+    analysis = build_real_mode_analysis(real_reit, get_real_mode_user_inputs())
+    metrics = analysis["metrics"]
+    score = analysis["score"]
+
     render_real_reit_factual_panel(real_reit)
-    disclosures = render_opendart_disclosure_monitor(real_reit)
-    rates = render_ecos_market_rate_panel()
-    render_real_mode_cfo_interpretation(real_reit, disclosures=disclosures, rates=rates)
-    st.info("CFO Memo와 Investor Q&A draft는 fictional Sample Mode에서 end-to-end demo로 확인할 수 있습니다.")
+    metric_cols = st.columns(4)
+    metric_cols[0].metric("Risk Score", score["risk_score_display"], score["risk_label"])
+    metric_cols[1].metric("Data confidence", score["confidence_level"])
+    metric_cols[2].metric("Dividend buffer", format_krw(metrics.get("dividend_buffer_krw")))
+    metric_cols[3].metric("Refinancing 가정 금리", f"{float(metrics['refinancing_rate_pct']):.2f}%" if metrics.get("refinancing_rate_pct") is not None else "데이터 없음")
+
+    alerts_text = "\n".join(
+        f"- {row['Alert']}: {row['Recommended action']} ({row['Basis']})"
+        for _, row in analysis["alerts"].iterrows()
+    )
+    validation_rows = analysis["confidence_report"]
+    validation_text = "\n".join(
+        f"- {row['Metric']}: {row['Source/Basis']} / {row['Confidence']}"
+        for _, row in validation_rows.iterrows()
+        if row["Validation"] == "필요"
+    )
+    base_rate_text = f"{float(metrics['base_rate_pct']):.2f}%" if metrics.get("base_rate_pct") is not None else "데이터 없음"
+    spread_text = (
+        f"{float(metrics['refinancing_spread_pct']):.2f}%"
+        if metrics.get("refinancing_spread_pct") is not None
+        else "데이터 없음"
+    )
+    memo = f"""## CFO Briefing Memo
+
+### 핵심 요약
+- 선택 REIT: {metrics['reit_name']}
+- Memo focus: {FOCUS_LABELS[focus]}
+- Risk Score: {score['risk_score_display']} ({score['risk_label']})
+- Data confidence: {score['confidence_level']}
+
+### 주요 리스크
+{alerts_text}
+
+### 배당가능성 영향
+- Dividend buffer: {format_krw(metrics.get('dividend_buffer_krw'))}
+- FFO/AFFO 산식은 OpenDART 재무제표와 공시 parser를 먼저 시도했으며, REIT별 조정항목은 manual validation이 필요합니다.
+
+### 리파이낸싱 영향
+- 기준금리: {base_rate_text}
+- Refinancing spread assumption: {spread_text}
+- 차입 만기 구조는 OpenDART 재무제표 기반 proxy를 먼저 사용하며, 약정별 만기는 공시 주석 또는 내부 treasury data 확인이 필요합니다.
+
+### 세금효과 고려사항
+- 세금효과는 현재 공개 API로 자동 검증하지 않으며 별도 세무 검토가 필요합니다.
+
+### CFO 권고 액션
+{validation_text or "- Data Quality 페이지에서 source/confidence가 낮은 항목을 우선 확인하세요."}
+
+> 본 memo는 투자 의견, 신용 판단, 부정적 리스크 평가가 아니며, 공개 API와 사용자 입력 가정 기반의 예비 draft입니다.
+"""
+    qa = f"""## Investor Q&A Draft
+
+### 예상 질문
+금리 및 refinancing spread 변화가 배당가능성과 차입비용에 어떤 영향을 줄 수 있습니까?
+
+### 답변 초안
+현재 분석은 OpenDART·ECOS 등 공개 API로 확인 가능한 factual data와 사용자가 입력한 가정, 그리고 수동 관리 macro assumption을 구분해 작성했습니다. Scenario 기준금리와 refinancing spread가 상승하면 interest expense impact와 dividend buffer가 변동할 수 있으므로, 회사는 공시 원문과 내부 treasury data를 기준으로 차입 만기 구조와 FFO/AFFO bridge를 확인해야 합니다.
+
+### 커뮤니케이션 유의사항
+- 실제 투자 판단이나 신용 판단으로 표현하지 않습니다.
+- 데이터 미확보 항목은 “자동 수집 시도 후 미확보” 또는 “manual validation 필요”로 설명합니다.
+- FFO, AFFO, WALE, 임차인 집중도, 자산별 NOI는 원문 공시 또는 내부 자료 확인 후 업데이트해야 합니다.
+"""
+    tabs = st.tabs(["CFO Briefing Memo", "Investor Q&A Draft", "Evidence Pack"])
+    with tabs[0]:
+        st.markdown(memo)
+    with tabs[1]:
+        st.markdown(qa)
+    with tabs[2]:
+        st.dataframe(analysis["confidence_report"], width="stretch", hide_index=True)
+        st.dataframe(analysis["alerts"], width="stretch", hide_index=True)
+
+    st.download_button("Real Mode Memo 다운로드 (.md)", data=memo, file_name="real_mode_cfo_memo.md", mime="text/markdown")
+    st.download_button("Real Mode Investor Q&A 다운로드 (.md)", data=qa, file_name="real_mode_investor_qa.md", mime="text/markdown")
     st.stop()
 
 data = load_all_data()
@@ -150,8 +228,8 @@ combined_markdown = f"{memo}\n\n---\n\n{qa}"
 combined_text = markdown_to_plain_text(combined_markdown)
 
 metric_cols = st.columns(5)
-metric_cols[0].metric("AFFO estimate", f"KRW {scenario['affo_estimate_krw_bn']:,.1f}bn")
-metric_cols[1].metric("Dividend buffer", f"KRW {scenario['dividend_buffer_krw_bn']:,.1f}bn", scenario["dividend_status"])
+metric_cols[0].metric("AFFO estimate", format_krw(scenario["affo_estimate_krw_bn"], unit="KRW_BN"))
+metric_cols[1].metric("Dividend buffer", format_krw(scenario["dividend_buffer_krw_bn"], unit="KRW_BN"), scenario["dividend_status"])
 metric_cols[2].metric("Refi Risk Score", f"{scenario['refinancing_risk_score']:.0f}/100", scenario["refinancing_status"])
 metric_cols[3].metric("Stressed LTV", f"{scenario['stressed_ltv_pct']:,.1f}%")
 metric_cols[4].metric("Overall Risk", f"{overall['overall_score']:.0f}/100", overall["overall_label"])
@@ -197,10 +275,10 @@ with tabs[1]:
 with tabs[2]:
     st.subheader("Scenario Evidence")
     cols = st.columns(4)
-    cols[0].metric("FFO estimate", f"KRW {scenario['ffo_estimate_krw_bn']:,.1f}bn")
-    cols[1].metric("AFFO estimate", f"KRW {scenario['affo_estimate_krw_bn']:,.1f}bn")
-    cols[2].metric("Interest impact", f"KRW {scenario['interest_expense_impact_krw_bn']:,.1f}bn")
-    cols[3].metric("Tax impact", f"KRW {scenario['tax_delta_krw_bn']:,.1f}bn")
+    cols[0].metric("FFO estimate", format_krw(scenario["ffo_estimate_krw_bn"], unit="KRW_BN"))
+    cols[1].metric("AFFO estimate", format_krw(scenario["affo_estimate_krw_bn"], unit="KRW_BN"))
+    cols[2].metric("Interest impact", format_krw(scenario["interest_expense_impact_krw_bn"], unit="KRW_BN"))
+    cols[3].metric("Tax impact", format_krw(scenario["tax_delta_krw_bn"], unit="KRW_BN"))
 
     st.subheader("Top CFO Alerts Feeding Narrative")
     st.dataframe(

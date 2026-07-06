@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import streamlit as st
 
@@ -10,16 +11,26 @@ VERSION_FILE = BASE_DIR / "VERSION.md"
 SAMPLE_MODE = "Sample Mode"
 REAL_API_MODE = "Real API Mode"
 
+INDEXED_PAGE_LABELS = [
+    "0. App",
+    "1. 고객 Pain Point",
+    "2. CFO Executive Dashboard",
+    "3. Scenario Engine",
+    "4. 자산 및 차입 리스크",
+    "5. AI Memo & Investor Q&A",
+    "6. 데이터 품질 · AI Readiness",
+]
+
 
 def get_app_version() -> str:
     if not VERSION_FILE.exists():
-        return "v10.1"
+        return "v11.1"
 
     for line in VERSION_FILE.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if stripped.startswith("Current version:"):
             return stripped.split(":", 1)[1].strip()
-    return "v10.1"
+    return "v11.1"
 
 
 APP_VERSION = get_app_version()
@@ -30,8 +41,11 @@ def setup_page(page_title: str, subtitle: str | None = None) -> None:
     inject_global_css()
     render_sidebar_version()
     render_data_mode_selector()
+    render_global_real_reit_selector()
+    render_global_real_assumption_inputs()
     render_sidebar_api_status()
     render_sidebar_disclaimer()
+    render_sidebar_module_index()
     st.title(page_title)
     if subtitle:
         st.caption(subtitle)
@@ -51,6 +65,85 @@ def render_data_mode_selector() -> str:
         help="Sample Mode는 fictional data 기반 end-to-end demo, Real API Mode는 공개 API 기반 factual data 조회입니다.",
     )
     return str(mode)
+
+
+def real_reit_selector_options(master: Any | None = None) -> list[str]:
+    if master is None:
+        try:
+            from modules.real_data_loader import load_real_reit_master
+
+            master = load_real_reit_master()
+        except Exception:
+            return ["선택 REIT"]
+
+    if hasattr(master, "columns") and "real_reit_name" in master.columns:
+        names = [str(name).strip() for name in master["real_reit_name"].tolist()]
+    else:
+        names = [str(item).strip() for item in master]
+
+    return [name for name in names if name] or ["선택 REIT"]
+
+
+def render_global_real_reit_selector() -> str | None:
+    if get_data_mode() != REAL_API_MODE:
+        return None
+
+    options = real_reit_selector_options()
+    selected = st.sidebar.selectbox(
+        "Real REIT 선택",
+        options,
+        index=0,
+        key="selected_real_reit_name",
+        help="회사명만 표시합니다. ticker와 corp_code는 내부 식별 정보로만 사용합니다.",
+    )
+    return str(selected)
+
+
+def get_sidebar_selected_real_reit_name(default: str | None = None) -> str | None:
+    return st.session_state.get("selected_real_reit_name", default)
+
+
+def render_global_real_assumption_inputs() -> None:
+    if get_data_mode() != REAL_API_MODE:
+        return
+
+    if st.sidebar.button("Refresh real data", key="refresh_real_data_button", help="OpenDART, ECOS, market/public data cache를 새로고침합니다."):
+        st.session_state["force_refresh_real_data"] = True
+        try:
+            st.cache_data.clear()
+        except Exception:
+            pass
+        st.sidebar.success("Real data cache를 새로고침했습니다.")
+
+    with st.sidebar.expander("Real Mode 수동 보완값", expanded=False):
+        st.caption("먼저 자동 수집을 시도하고, 확인되지 않는 항목만 선택적으로 보완합니다. 0은 미입력으로 처리합니다.")
+        st.number_input("총자산 (억 원)", min_value=0.0, value=0.0, step=100.0, key="real_total_assets_eok")
+        st.number_input("총차입금 (억 원)", min_value=0.0, value=0.0, step=100.0, key="real_total_debt_eok")
+        st.number_input("연간 NOI (억 원)", min_value=0.0, value=0.0, step=10.0, key="real_annual_noi_eok")
+        st.number_input("연간 배당금 (억 원)", min_value=0.0, value=0.0, step=10.0, key="real_dividend_eok")
+        st.number_input("변동금리 차입 비중 (%)", min_value=0.0, max_value=100.0, value=0.0, step=5.0, key="real_floating_debt_pct")
+        st.number_input("1~2년 만기도래 차입 비중 (%)", min_value=0.0, max_value=100.0, value=0.0, step=5.0, key="real_near_term_debt_pct")
+        st.number_input("평균 조달금리 (%)", min_value=0.0, max_value=20.0, value=0.0, step=0.1, key="real_average_coupon_pct")
+
+
+def get_real_mode_user_inputs() -> dict[str, float | None]:
+    def _eok_to_krw(key: str) -> float | None:
+        value = float(st.session_state.get(key, 0.0) or 0.0)
+        return value * 100_000_000 if value > 0 else None
+
+    def _pct_or_none(key: str) -> float | None:
+        value = float(st.session_state.get(key, 0.0) or 0.0)
+        return value if value > 0 else None
+
+    return {
+        "total_assets_krw": _eok_to_krw("real_total_assets_eok"),
+        "total_debt_krw": _eok_to_krw("real_total_debt_eok"),
+        "annual_noi_krw": _eok_to_krw("real_annual_noi_eok"),
+        "dividend_krw": _eok_to_krw("real_dividend_eok"),
+        "floating_debt_pct": _pct_or_none("real_floating_debt_pct"),
+        "near_term_debt_pct": _pct_or_none("real_near_term_debt_pct"),
+        "average_coupon_pct": _pct_or_none("real_average_coupon_pct"),
+    }
 
 
 def get_data_mode() -> str:
@@ -92,11 +185,18 @@ def render_sidebar_api_status() -> None:
     ecos_status = "Key configured" if ecos_ready else "Sample fallback"
     fallback_status = "예" if not (dart_ready and ecos_ready) else "API 시도"
 
-    st.sidebar.markdown("### External API")
-    st.sidebar.caption(f"OpenDART 연결 상태: {dart_status}")
-    st.sidebar.caption(f"ECOS 연결 상태: {ecos_status}")
-    st.sidebar.caption(f"Sample data fallback 여부: {fallback_status}")
-    st.sidebar.caption("API key는 UI에 표시하지 않습니다.")
+    with st.sidebar.expander("External API 상태", expanded=False):
+        st.caption(f"OpenDART 연결 상태: {dart_status}")
+        st.caption(f"ECOS 연결 상태: {ecos_status}")
+        st.caption(f"Sample data fallback 여부: {fallback_status}")
+        st.caption("API key는 UI에 표시하지 않습니다.")
+
+
+def render_sidebar_module_index() -> None:
+    st.sidebar.markdown("---")
+    with st.sidebar.expander("Dashboard 구성", expanded=False):
+        for label in INDEXED_PAGE_LABELS:
+            st.caption(label)
 
 
 def inject_global_css() -> None:
@@ -244,8 +344,40 @@ def risk_tag(risk_tier: str) -> str:
     return f'<span class="{css}">{risk_tier}</span>'
 
 
-def format_krw_bn(value: float, digits: int = 0) -> str:
-    return f"KRW {value:,.{digits}f}bn"
+def _compact_number(value: float, digits: int = 1) -> str:
+    if abs(value - round(value)) < 1e-9:
+        return f"{round(value):,.0f}"
+    return f"{value:,.{digits}f}".rstrip("0").rstrip(".")
+
+
+def format_krw(value: float | int | None, unit: str = "KRW", compact: bool = True) -> str:
+    if value is None:
+        return "데이터 없음"
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return "데이터 없음"
+
+    if unit.lower() in {"krw_bn", "krw bn", "bn"}:
+        amount *= 1_000_000_000
+    elif unit.lower() in {"krw_m", "krw m", "m"}:
+        amount *= 1_000_000
+
+    if amount != amount:
+        return "데이터 없음"
+
+    sign = "-" if amount < 0 else ""
+    amount = abs(amount)
+
+    if amount >= 1_000_000_000_000:
+        return f"{sign}{_compact_number(amount / 1_000_000_000_000, 1)}조 원"
+    if amount >= 100_000_000:
+        return f"{sign}{_compact_number(amount / 100_000_000, 1)}억 원"
+    return f"{sign}{_compact_number(amount / 10_000, 0)}만 원"
+
+
+def format_krw_bn(value: float | int | None, digits: int = 0) -> str:
+    return format_krw(value, unit="KRW_BN")
 
 
 def format_pct(value: float, digits: int = 1) -> str:

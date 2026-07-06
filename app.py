@@ -2,25 +2,17 @@ import plotly.express as px
 import streamlit as st
 
 from modules.data_loader import load_all_data
+from modules.real_mode_analytics import build_real_mode_analysis
 from modules.risk_scoring import executive_signal_table
-from modules.ui_components import format_krw_bn, hero, is_real_api_mode, setup_page, signal_card
-
-try:
-    from modules.real_data_loader import load_real_reit_master
-except Exception:
-    def load_real_reit_master():
-        import pandas as pd
-
-        return pd.DataFrame(
-            [
-                {
-                    "real_reit_name": "Real REIT fallback",
-                    "ticker": "",
-                    "corp_code": "",
-                    "notes": "real_data_loader module is unavailable.",
-                }
-            ]
-        )
+from modules.ui_components import (
+    INDEXED_PAGE_LABELS,
+    format_krw_bn,
+    get_real_mode_user_inputs,
+    hero,
+    is_real_api_mode,
+    setup_page,
+    signal_card,
+)
 
 try:
     import modules.real_mode_components as real_components
@@ -75,7 +67,7 @@ select_real_reit = _real_component("select_real_reit", _fallback_select_real_rei
 
 
 setup_page(
-    "K-REIT CFO Copilot",
+    "0. App · K-REIT CFO Copilot",
     "상장 REIT CFO, AMC, IR팀을 위한 rule-based AX decision support prototype",
 )
 
@@ -98,26 +90,25 @@ hero(
 
 if is_real_api_mode():
     render_real_mode_warning()
-    real_reit = select_real_reit("Landing Real REIT 선택")
-    render_real_reit_factual_panel(real_reit)
-    rates = render_ecos_market_rate_panel()
-    render_real_mode_cfo_interpretation(real_reit, rates=rates)
+    real_reit = select_real_reit("Real REIT 선택")
+    analysis = build_real_mode_analysis(real_reit, get_real_mode_user_inputs())
+    metrics = analysis["metrics"]
+    score = analysis["score"]
 
-    st.subheader("Real REIT API Mode Coverage")
-    real_master = load_real_reit_master()
-    st.dataframe(
-        real_master.rename(
-            columns={
-                "real_reit_name": "Real REIT",
-                "ticker": "Ticker",
-                "corp_code": "OpenDART corp_code",
-                "notes": "Notes",
-            }
-        ),
-        width="stretch",
-        hide_index=True,
+    render_real_reit_factual_panel(real_reit)
+    cols = st.columns(4)
+    cols[0].metric("Risk Score", score["risk_score_display"], score["risk_label"])
+    cols[1].metric("Data confidence", score["confidence_level"])
+    cols[2].metric("기준금리", f"{float(metrics['base_rate_pct']):.2f}%" if metrics.get("base_rate_pct") is not None else "데이터 없음")
+    cols[3].metric(
+        "Refinancing 가정 금리",
+        f"{float(metrics['refinancing_rate_pct']):.2f}%" if metrics.get("refinancing_rate_pct") is not None else "데이터 없음",
     )
-    st.info("Real API Mode에서는 sample Risk Score나 sample disclosure flags를 실제 REIT에 적용하지 않습니다.")
+    st.caption("Risk Score는 OpenDART, 공시 parser, market/public data, macro proxy에서 최소 4개 category가 확보될 때 산출합니다.")
+    with st.expander("Real Data Pipeline source / confidence", expanded=False):
+        st.dataframe(analysis["confidence_report"].head(12), width="stretch", hide_index=True)
+    st.subheader("Top CFO Alerts")
+    st.dataframe(analysis["alerts"], width="stretch", hide_index=True)
     st.stop()
 
 col1, col2, col3 = st.columns(3)
@@ -189,36 +180,36 @@ with table_col:
         hide_index=True,
     )
 
-st.subheader("Six Dashboard Modules")
+st.subheader("6개 Dashboard 구성")
 
 modules = [
     {
-        "Module": "고객 Pain Point",
+        "Module": "1. 고객 Pain Point",
         "핵심 질문": "CFO, AMC, IR팀의 업무 pain point는 어디에서 발생하는가?",
         "주요 Output": "Pain point와 business impact map",
     },
     {
-        "Module": "CFO Executive Dashboard",
+        "Module": "2. CFO Executive Dashboard",
         "핵심 질문": "CFO가 지금 봐야 할 리스크 signal은 무엇인가?",
         "주요 Output": "배당, refinancing, AI Readiness, disclosure cockpit",
     },
     {
-        "Module": "Scenario Engine",
+        "Module": "3. Scenario Engine",
         "핵심 질문": "금리, rent, asset value, tax impact가 cash flow를 어떻게 바꾸는가?",
         "주요 Output": "tax-adjusted cash flow 및 dividend coverage bridge",
     },
     {
-        "Module": "자산 및 차입 리스크",
+        "Module": "4. 자산 및 차입 리스크",
         "핵심 질문": "어떤 asset과 maturity가 리스크를 주도하는가?",
         "주요 Output": "asset Risk Score ranking 및 debt maturity wall",
     },
     {
-        "Module": "AI Memo & Investor Q&A",
+        "Module": "5. AI Memo & Investor Q&A",
         "핵심 질문": "숫자를 어떤 management narrative로 설명할 것인가?",
         "주요 Output": "rule-based CFO Memo 및 Investor Q&A draft",
     },
     {
-        "Module": "데이터 품질 및 AI Readiness",
+        "Module": "6. 데이터 품질 · AI Readiness",
         "핵심 질문": "AI-enabled reporting을 확장할 데이터 기반이 준비되어 있는가?",
         "주요 Output": "Data Quality 진단 및 AX readiness roadmap",
     },

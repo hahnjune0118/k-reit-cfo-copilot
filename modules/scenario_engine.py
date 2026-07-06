@@ -183,12 +183,12 @@ def scenario_waterfall(scenario: dict[str, float | str]) -> pd.DataFrame:
 
 def scenario_summary_table(base_case: dict[str, float | str], scenario: dict[str, float | str]) -> pd.DataFrame:
     rows = [
-        ("Scenario-adjusted NOI", "KRW bn", "base_noi_krw_bn", "scenario_adjusted_noi_krw_bn"),
-        ("Interest expense impact", "KRW bn", "interest_expense_impact_krw_bn", "interest_expense_impact_krw_bn"),
-        ("FFO estimate", "KRW bn", "base_ffo_krw_bn", "ffo_estimate_krw_bn"),
-        ("AFFO estimate", "KRW bn", "affo_estimate_krw_bn", "affo_estimate_krw_bn"),
+        ("Scenario-adjusted NOI", "KRW_BN", "base_noi_krw_bn", "scenario_adjusted_noi_krw_bn"),
+        ("Interest expense impact", "KRW_BN", "interest_expense_impact_krw_bn", "interest_expense_impact_krw_bn"),
+        ("FFO estimate", "KRW_BN", "base_ffo_krw_bn", "ffo_estimate_krw_bn"),
+        ("AFFO estimate", "KRW_BN", "affo_estimate_krw_bn", "affo_estimate_krw_bn"),
         ("LTV", "%", "base_ltv_pct", "stressed_ltv_pct"),
-        ("Dividend buffer", "KRW bn", "dividend_buffer_krw_bn", "dividend_buffer_krw_bn"),
+        ("Dividend buffer", "KRW_BN", "dividend_buffer_krw_bn", "dividend_buffer_krw_bn"),
         ("Refinancing Risk Score", "score", "refinancing_risk_score", "refinancing_risk_score"),
     ]
     summary = []

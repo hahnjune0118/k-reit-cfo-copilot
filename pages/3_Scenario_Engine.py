@@ -4,6 +4,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from modules.data_loader import load_all_data, load_market_rate_data, reit_id_from_name, reit_options
+from modules.real_mode_analytics import build_real_mode_analysis
 from modules.scenario_engine import (
     cfo_interpretation,
     run_peer_scenarios,
@@ -11,7 +12,7 @@ from modules.scenario_engine import (
     scenario_summary_table,
     scenario_waterfall,
 )
-from modules.ui_components import format_krw_bn, format_pct, hero, is_real_api_mode, setup_page
+from modules.ui_components import format_krw, format_krw_bn, format_pct, get_real_mode_user_inputs, hero, is_real_api_mode, setup_page
 
 try:
     import modules.real_mode_components as real_components
@@ -76,7 +77,7 @@ select_real_reit = _real_component("select_real_reit", _fallback_select_real_rei
 
 
 def _format_summary_value(value: float, unit: str) -> str:
-    if unit == "KRW bn":
+    if unit in {"KRW_BN", "원"}:
         return format_krw_bn(value, 1)
     if unit == "%":
         return format_pct(value, 1)
@@ -92,18 +93,76 @@ setup_page(
 
 if is_real_api_mode():
     hero(
-        "Real API Mode Scenario",
-        "공개 API factual data + 사용자 입력 기반 예비 시뮬레이션",
-        "Real API Mode에서는 asset-level WALE, LTV, tenant concentration 등 내부 데이터가 필요한 항목을 추정하지 않습니다. "
-        "아래 Scenario는 사용자가 입력한 가정을 기반으로 제한적으로 계산됩니다.",
+        "Real API Mode Scenario Engine",
+        "ECOS 실제 금리와 macro assumption을 연결한 CFO scenario view",
+        "Base / Downside / Upside 금리 및 spread 가정을 사용하며, 회사별 현금흐름 항목은 OpenDART 재무제표와 공시 parser 결과를 먼저 반영합니다.",
     )
-    render_real_mode_warning()
-    real_reit = select_real_reit("Scenario Real REIT 선택")
+    real_reit = select_real_reit("Real REIT 선택")
+    user_inputs = get_real_mode_user_inputs()
+    analysis = build_real_mode_analysis(real_reit, user_inputs)
+    metrics = analysis["metrics"]
     render_real_reit_factual_panel(real_reit)
-    rates = render_ecos_market_rate_panel()
-    disclosures = render_opendart_disclosure_monitor(real_reit)
-    scenario = render_real_mode_manual_scenario(real_reit)
-    render_real_mode_cfo_interpretation(real_reit, disclosures=disclosures, rates=rates, scenario=scenario)
+
+    st.subheader("Macro Assumption Layer")
+    render_ecos_market_rate_panel(analysis["public_data"]["market_rates"])
+    macro_view = analysis["public_data"]["rate_scenarios"].copy()
+    for column in ["기준금리", "credit spread", "refinancing spread", "Scenario 기준금리"]:
+        macro_view[column] = macro_view[column].map(lambda value: f"{float(value):.2f}%")
+    st.dataframe(macro_view, width="stretch", hide_index=True)
+
+    st.subheader("Scenario Overlay")
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        rate_shock = st.slider("추가 금리 충격 (bp)", -50, 200, 50, 25)
+    with col2:
+        rent_change = st.slider("임대료 변화율 (%)", -10.0, 10.0, 0.0, 0.5)
+    with col3:
+        asset_value_change = st.slider("자산가치 변화율 (%)", -20.0, 10.0, 0.0, 0.5)
+    with col4:
+        include_tax_effect = st.checkbox("세금효과 반영 여부", value=True)
+
+    scenario_outputs = analysis["scenario_outputs"].copy()
+    total_debt = metrics.get("total_debt_krw")
+    floating_pct = metrics.get("floating_debt_pct") or 0
+    annual_noi = metrics.get("annual_noi_krw")
+    tax_drag = 0.01 if include_tax_effect else 0.0
+    extra_interest = total_debt * floating_pct / 100 * rate_shock / 10000 if total_debt is not None else None
+    rent_delta = annual_noi * rent_change / 100 if annual_noi is not None else None
+
+    if extra_interest is not None:
+        scenario_outputs["Interest expense impact"] = scenario_outputs["Interest expense impact"].fillna(0) + extra_interest
+    if rent_delta is not None:
+        scenario_outputs["Dividend buffer"] = scenario_outputs["Dividend buffer"].apply(
+            lambda value: None if pd.isna(value) else value + rent_delta - max(annual_noi * tax_drag, 0)
+        )
+    scenario_outputs["Asset value change"] = f"{asset_value_change:+.1f}%"
+
+    display = scenario_outputs.copy()
+    display["Scenario 기준금리"] = display["Scenario 기준금리"].map(lambda value: f"{float(value):.2f}%")
+    display["Interest expense impact"] = display["Interest expense impact"].map(format_krw)
+    display["Dividend buffer"] = display["Dividend buffer"].map(format_krw)
+    st.subheader("Base / Downside / Upside Scenario")
+    st.dataframe(display, width="stretch", hide_index=True)
+
+    chart_df = scenario_outputs.copy()
+    left, right = st.columns(2)
+    with left:
+        st.subheader("Dividend Buffer Impact")
+        if chart_df["Dividend buffer"].notna().any():
+            fig = px.bar(chart_df, x="Scenario", y="Dividend buffer", color="Scenario", labels={"Dividend buffer": "Dividend buffer"})
+            fig.update_layout(height=330, margin=dict(l=10, r=10, t=20, b=10), showlegend=False)
+            st.plotly_chart(fig, width="stretch")
+        else:
+            st.info("Dividend buffer는 OpenDART/공시 parser에서 확보된 NOI proxy와 배당금이 부족하면 산출이 제한됩니다.")
+    with right:
+        st.subheader("Refinancing Pressure Impact")
+        st.dataframe(
+            chart_df[["Scenario", "Refinancing pressure", "Source/Basis"]].rename(columns={"Source/Basis": "근거"}),
+            width="stretch",
+            hide_index=True,
+        )
+
+    render_real_mode_cfo_interpretation(real_reit, scenario=scenario_outputs)
     st.stop()
 
 data = load_all_data()
@@ -202,6 +261,7 @@ for column in ["Base", "Scenario", "Change"]:
         lambda row: _format_summary_value(row[column], row["Unit"]),
         axis=1,
     )
+summary_display["Unit"] = summary_display["Unit"].replace({"KRW_BN": "원"})
 st.dataframe(
     summary_display.rename(
         columns={
@@ -231,9 +291,9 @@ with chart_left:
         x="Case",
         y="Dividend buffer",
         color="Case",
-        text=buffer_chart["Dividend buffer"].round(1),
+        text=buffer_chart["Dividend buffer"].map(format_krw_bn),
         color_discrete_map={"Base": "#263b5e", "Scenario": "#007c89"},
-        labels={"Dividend buffer": "Dividend buffer (KRW bn)"},
+        labels={"Dividend buffer": "Dividend buffer"},
     )
     fig.add_hline(y=0, line_dash="dash", line_color="#667085")
     fig.update_layout(height=370, margin=dict(l=10, r=10, t=20, b=10), showlegend=False)
@@ -280,7 +340,7 @@ with left:
     fig.update_layout(
         height=420,
         margin=dict(l=10, r=10, t=20, b=10),
-        yaxis_title="KRW bn",
+        yaxis_title="금액",
         showlegend=False,
     )
     st.plotly_chart(fig, width="stretch")
@@ -303,8 +363,8 @@ with right:
         y="dividend_buffer_krw_bn",
         color="refinancing_status",
         color_discrete_map={"High": "#c94f4f", "Medium": "#b76e00", "Low": "#007c89"},
-        labels={"reit_name": "", "dividend_buffer_krw_bn": "Dividend buffer (KRW bn)"},
-        text=peer["dividend_buffer_krw_bn"].round(1),
+        labels={"reit_name": "", "dividend_buffer_krw_bn": "Dividend buffer"},
+        text=peer["dividend_buffer_krw_bn"].map(format_krw_bn),
     )
     peer_chart.add_hline(y=0, line_dash="dash", line_color="#667085")
     peer_chart.update_layout(height=420, margin=dict(l=10, r=10, t=20, b=10))
